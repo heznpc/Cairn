@@ -188,13 +188,15 @@ cairn builds with strict schemas may reject documents containing the new fields.
 A shared OSM node is required to change ways: crossing lines alone never join,
 while a bridge can connect to a ground-level way at a shared endpoint. The
 way-level filter honors `foot` over `access`, excludes restrictions and motorway/
-trunk defaults, and skips unsupported conditional, pedestrian one-way, indoor,
-and area semantics. The query also retrieves node tags and barrier ways sharing
-road nodes. Locked gates, restricted access, exit-only/emergency/sealed doors,
+trunk defaults, and skips unsupported conditional, pedestrian one-way, conveying
+(escalators/moving walkways), indoor, and area semantics. The query also retrieves
+node tags and barrier ways sharing road nodes. Locked gates, restricted access, exit-only/emergency/sealed doors,
 and unsupported conditional or opening-hour restrictions block network traversal.
 Other barriers require explicit pedestrian permission or a mapped opening;
 missing node metadata never counts as unrestricted access. Blocked segments
 remain snap candidates so endpoints cannot silently jump beyond a barrier.
+At a shared node, snapping considers its traversable edges regardless of way
+order; equal-distance candidates with distinct identities remain ambiguous.
 These checks reflect OSM data; current on-site conditions, local access defaults,
 unmapped barriers and endpoint connectors are not established by that data.
 No connected route, an off-canvas/excessive detour, or a

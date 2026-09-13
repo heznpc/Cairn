@@ -136,6 +136,8 @@ export function canInferFootAccess(road: Road): boolean {
     tags["foot:conditional"] || tags["access:conditional"] || tags.opening_hours ||
     tags["foot:forward"] || tags["foot:backward"] || tags["access:forward"] || tags["access:backward"] ||
     (tags["oneway:foot"] && tags["oneway:foot"] !== "no") ||
+    // Escalators and moving walkways need directional/time-aware edges.
+    (tags.conveying && tags.conveying !== "no") || tags["conveying:conditional"] ||
     tags.indoor === "yes"
   ) return false;
   const access = tags.foot ?? tags.access;
@@ -214,17 +216,25 @@ function buildSegments(options: ApproachRouteOptions): RouteSegment[] | null {
 }
 
 function nearestSegmentSnap(point: Point, segments: RouteSegment[]): SegmentSnap | null {
-  let best: SegmentSnap | null = null;
+  let nearestDistance = Infinity;
+  const candidates: SegmentSnap[] = [];
   for (const [segmentIndex, segment] of segments.entries()) {
     const snap = projectPointToSegment(point, segment.start, segment.end);
-    if (!best || snap.distance < best.distance) {
+    if (snap.distance < nearestDistance - EPSILON) candidates.length = 0;
+    nearestDistance = Math.min(nearestDistance, snap.distance);
+    if (snap.distance <= nearestDistance + EPSILON) {
       const key = snap.progress <= EPSILON ? segment.stops[0].key
         : snap.progress >= 1 - EPSILON ? segment.stops[1].key
         : `snap:${segmentIndex}:${snap.progress.toFixed(9)}`;
-      best = { ...snap, segmentIndex, key };
+      candidates.push({ ...snap, segmentIndex, key });
     }
   }
-  return best;
+  const nearest = candidates.filter((candidate) => candidate.distance <= nearestDistance + EPSILON);
+  if (!nearest.length) return null;
+  // Equal-distance hits may use any traversable edge at the SAME OSM node.
+  // Coincident but distinct identities remain ambiguous, never a new junction.
+  if (nearest.some((candidate) => candidate.key !== nearest[0].key)) return null;
+  return nearest.find((candidate) => segments[candidate.segmentIndex].traversable) ?? nearest[0];
 }
 
 function projectPointToSegment(

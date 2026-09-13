@@ -2,7 +2,7 @@
 // Exercise installed CLI + MCP against a controlled Nominatim/Overpass mirror.
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { createServer } from "node:http";
 import { join } from "node:path";
 import { promisify } from "node:util";
@@ -12,6 +12,7 @@ import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js"
 const packageName = process.argv[2];
 const packageDir = join(process.cwd(), "node_modules", packageName);
 const cli = join(packageDir, "dist", "cli.js");
+const { createDiagramDocument, applyDiagramDocumentPatch, renderDiagramDocument } = await import(`${packageName}/document`);
 const candidates = [
   { osm_type: "relation", osm_id: 1, lat: "35", lon: "129", display_name: "Same name, Busan" },
   { osm_type: "relation", osm_id: 2, lat: "37.5", lon: "127", display_name: "Same name, Seoul" },
@@ -75,6 +76,15 @@ try {
   assert.equal(gate.tags.locked, "yes");
   assert.equal(gate.barriers[0].tags.barrier, "fence");
 
+  // Editing an installed library document must not unlock its source/history.
+  const original = createDiagramDocument(locked.structuredContent.layout);
+  const edited = applyDiagramDocumentPatch(original, { render: { theme: "mono" } });
+  edited.map.roads[0].nodes[1].tags.locked = "no";
+  assert.equal(original.map.roads[0].nodes[1].tags.locked, "yes");
+  assert.equal(locked.structuredContent.layout.roads[0].nodes[1].tags.locked, "yes");
+  assert.match(renderDiagramDocument(original), /data-route-mode="direct"/);
+  assert.match(renderDiagramDocument(edited), /data-route-mode="osm-network"/);
+
   nodes[1].tags.locked = "no";
   const opened = await generate();
   assert.ok(!opened.isError, JSON.stringify(opened.content));
@@ -98,7 +108,36 @@ try {
   await runCli(["Same name", "--candidate", "relation:2", "-o", svg, "--save-document", document]);
   assert.equal(JSON.parse(readFileSync(document, "utf8")).map.center.lat, 37.5);
   assert.match(readFileSync(svg, "utf8"), /data-route-mode="osm-network"/);
-  console.log("installed CLI/MCP ambiguity selection and barrier traversal smoke passed");
+
+  const junction = structuredClone(opened.structuredContent.document);
+  const anchor = junction.map.roads[0].nodes[0];
+  const spurNodes = [anchor, {
+    id: "closed-spur", lat: anchor.lat + 0.0004, lon: anchor.lon,
+    tags: { barrier: "gate", locked: "yes" },
+  }];
+  const spur = { id: "spur", class: "path", tags: { highway: "footway" },
+    nodes: spurNodes, points: spurNodes.map(({ lat, lon }) => ({ lat, lon })) };
+  const main = junction.map.roads[0];
+  const conveyor = structuredClone(opened.structuredContent.document);
+  conveyor.map.roads[0].tags = { highway: "steps", conveying: "forward" };
+  conveyor.map.roads[0].nodes.reverse();
+  const cases = [
+    { name: "blocked-spur-first", document: { ...junction, map: { ...junction.map, roads: [spur, main] } }, mode: "osm-network" },
+    { name: "public-way-first", document: { ...junction, map: { ...junction.map, roads: [main, spur] } }, mode: "osm-network" },
+    { name: "reverse-escalator", document: conveyor, mode: "direct" },
+  ];
+  for (const fixture of cases) {
+    const rendered = await client.callTool({ name: "render_document", arguments: { document: fixture.document } });
+    assert.ok(!rendered.isError, JSON.stringify(rendered.content));
+    const expectedMode = new RegExp(`data-route-mode="${fixture.mode}"`);
+    assert.match(rendered.structuredContent.svg, expectedMode, fixture.name);
+    const inputPath = join(process.cwd(), `${fixture.name}.json`);
+    const outputPath = join(process.cwd(), `${fixture.name}.svg`);
+    writeFileSync(inputPath, JSON.stringify(fixture.document));
+    await runCli(["render", inputPath, "-o", outputPath]);
+    assert.match(readFileSync(outputPath, "utf8"), expectedMode, fixture.name);
+  }
+  console.log("installed CLI/MCP ambiguity, barriers, junction order, conveyors and document isolation smoke passed");
 } finally {
   await client.close();
   await new Promise((resolve) => mirror.close(resolve));

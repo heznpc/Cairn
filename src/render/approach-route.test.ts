@@ -14,6 +14,43 @@ const road = (id: string, nodes: Array<[string, number, number]>, tags = { highw
 });
 
 describe("buildApproachRoute", () => {
+  it.each(["forward", "backward", "reversible", "yes"])("does not route either direction through an unsupported conveyor: %s", (conveying) => {
+    for (const highway of ["steps", "footway"]) {
+      const conveyor = road("conveyor", [["bottom", 0, 0], ["top", 100, 0]], {
+        highway, conveying, foot: "yes",
+      });
+      for (const [startX, endX] of [[0, 100], [100, 0]]) {
+        expect(buildApproachRoute({
+          ...base, start: { x: startX, y: 0 }, destination: { x: endX, y: 0 }, roads: [conveyor],
+        })?.mode).toBe("direct");
+      }
+    }
+  });
+
+  it("snaps to a traversable edge at a shared junction regardless of way order", () => {
+    const publicWay = road("public", [["junction", 0, 0], ["end", 100, 0]]);
+    const spur = road("spur", [["junction", 0, 0], ["gate", 0, 40]]);
+    spur.nodes![1].tags = { barrier: "gate", locked: "yes" };
+    for (const roads of [[spur, publicWay], [publicWay, spur]]) {
+      for (const junction of [{ x: 0, y: 0 }, { x: -5, y: -5 }]) {
+        for (const [start, destination] of [[junction, { x: 100, y: 0 }], [{ x: 100, y: 0 }, junction]]) {
+          expect(buildApproachRoute({ ...base, start, destination, roads })?.mode).toBe("osm-network");
+        }
+      }
+    }
+  });
+
+  it("does not resolve equal-distance snaps by merging distinct OSM identities", () => {
+    const publicWay = road("public", [["junction", 0, 0], ["end", 100, 0]]);
+    const spur = road("spur", [["separate-node", 0, 0], ["gate", 0, 40]]);
+    spur.nodes![1].tags = { barrier: "gate", locked: "yes" };
+    for (const roads of [[spur, publicWay], [publicWay, spur]]) {
+      expect(buildApproachRoute({
+        ...base, start: { x: 0, y: 0 }, destination: { x: 100, y: 0 }, roads,
+      })?.mode).toBe("direct");
+    }
+  });
+
   it("uses a public detour around a locked gate and preserves a direction cue when none exists", () => {
     const main = road("main", [["a", 0, 0], ["b", 20, 0], ["gate", 50, 0], ["c", 80, 0], ["d", 100, 0]]);
     main.nodes![2].tags = { barrier: "gate", foot: "yes", locked: "yes" };
@@ -217,6 +254,7 @@ describe("way-level foot access", () => {
     { highway: "path", opening_hours: "Mo-Fr 09:00-18:00" },
     { highway: "footway", "foot:backward": "no" },
     { highway: "footway", indoor: "yes" },
+    { highway: "steps", "conveying:conditional": "forward @ (Mo-Fr)" },
   ])("excludes restrictions and unsupported semantics: %j", (tags) => {
     expect(canInferFootAccess(road("a", [["1", 0, 0], ["2", 100, 0]], tags))).toBe(false);
   });
@@ -226,6 +264,7 @@ describe("way-level foot access", () => {
     { highway: "footway", foot: "designated" },
     { highway: "path", foot: "permissive" },
     { highway: "steps" },
+    { highway: "steps", conveying: "no" },
     { highway: "pedestrian" },
     { highway: "residential", oneway: "yes" },
   ])("honors foot overrides and supported defaults: %j", (tags) => {

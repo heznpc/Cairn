@@ -11,6 +11,7 @@ import type {
   LandmarkOverride,
   MapLayout,
   RenderOptions,
+  Road,
   RoadOverride,
 } from "./types.js";
 
@@ -63,11 +64,8 @@ export function applyDiagramOverrides(
       const override = overrides.roads?.[road.id];
       if (override?.hidden) return [];
       return [{
-        ...road,
+        ...cloneRoad(road),
         name: override?.label ?? road.name,
-        points: road.points.map((point) => ({ ...point })),
-        ...(road.nodes ? { nodes: road.nodes.map((node) => ({ ...node })) } : {}),
-        ...(road.tags ? { tags: { ...road.tags } } : {}),
       }];
     }),
     bbox: { ...map.bbox },
@@ -174,6 +172,21 @@ export function applyDiagramDocumentPatch(
   return next;
 }
 
+function cloneRoad(road: Road): Road {
+  return {
+    ...road,
+    points: road.points.map((point) => ({ ...point })),
+    ...(road.nodes ? { nodes: road.nodes.map((node) => ({
+      ...node,
+      ...(node.tags ? { tags: { ...node.tags } } : {}),
+      ...(node.barriers ? { barriers: node.barriers.map((barrier) => ({
+        ...barrier, tags: { ...barrier.tags },
+      })) } : {}),
+    })) } : {}),
+    ...(road.tags ? { tags: { ...road.tags } } : {}),
+  };
+}
+
 function cloneMap(map: MapLayout): MapLayout {
   return {
     center: { ...map.center },
@@ -181,12 +194,7 @@ function cloneMap(map: MapLayout): MapLayout {
       ...landmark,
       tags: { ...landmark.tags },
     })),
-    roads: map.roads.map((road) => ({
-      ...road,
-      points: road.points.map((point) => ({ ...point })),
-      ...(road.nodes ? { nodes: road.nodes.map((node) => ({ ...node })) } : {}),
-      ...(road.tags ? { tags: { ...road.tags } } : {}),
-    })),
+    roads: map.roads.map(cloneRoad),
     bbox: { ...map.bbox },
   };
 }
