@@ -57,6 +57,11 @@ Review the actual image against `facts`, the reference and every returned
 of a road or silently change Korean letters. Style similarity is not proof of
 geographic correctness. Do not call a route verified from shared OSM nodes.
 
+Use the place icon itself as the location marker. Check for redundant black
+anchor dots or short leader stubs beside icons; remove them rather than moving
+the icon away from its true position. Adjacent labels need no leader. A distant
+label can connect directly to the icon edge with a thin line and no endpoint dots.
+
 For a spelling-only defect, edit only that label while preserving geometry.
 For a structural/style defect, rebuild from the original geographic reference
 with the same source facts and a concise correction. Do not keep editing a

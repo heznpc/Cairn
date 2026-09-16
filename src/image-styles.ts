@@ -39,7 +39,7 @@ export const IMAGE_STYLE_PROFILES: Record<ImageStyle, {
       "consistent family of small recognizable place icons along a simplified street skeleton. " +
       "Generic category icons are symbolic, never purported likenesses of real buildings. " +
       "Allow gently compressed distances and enlarged icons, but preserve relative direction, " +
-      "road-side placement and intersection order. Use leaders when labels move away from anchors. " +
+      "road-side placement and intersection order. Keep labels beside their icons wherever possible. " +
       "Avoid a dense city map, decorative skyline, and unrelated illustrations.",
   },
 };
