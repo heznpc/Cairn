@@ -9,11 +9,14 @@ import {
   GenerateMapArgs,
   GeocodeArgs,
   RenderDocumentArgs,
+  PrepareImageBriefArgs,
 } from "./tool-input-schemas.js";
 import {
   applyDiagramDocumentPatch,
   renderDiagramDocument,
 } from "./diagram-document.js";
+import { prepareImageBrief } from "./image-brief.js";
+import { encodeMapArtifact } from "./export.js";
 
 export { tools } from "./tool-registry.js";
 
@@ -23,7 +26,7 @@ export { tools } from "./tool-registry.js";
 // not a primitive or array. Reflect that at the type level so a future
 // `jsonResult(42)` or `jsonResult(landmarksArray)` won't compile.
 export interface DispatchResult {
-  content: Array<{ type: "text"; text: string }>;
+  content: Array<{ type: "text"; text: string } | { type: "image"; data: string; mimeType: "image/png" }>;
   structuredContent?: Record<string, unknown>;
   isError?: boolean;
 }
@@ -69,6 +72,18 @@ export async function dispatchTool(
   args: unknown,
 ): Promise<DispatchResult> {
   try {
+    if (name === "prepare_image_brief") {
+      const input = PrepareImageBriefArgs.parse(args);
+      const brief = prepareImageBrief(input.document, input.style);
+      const png = encodeMapArtifact(brief.referenceSvg, brief.canvas, "png") as Buffer;
+      return {
+        content: [
+          { type: "text", text: brief.prompt },
+          { type: "image", mimeType: "image/png", data: png.toString("base64") },
+        ],
+        structuredContent: brief,
+      };
+    }
     if (name === "generate_map") {
       const input = GenerateMapArgs.parse(args);
       const { svg, layout, document } = await generateMap(input.address, input);

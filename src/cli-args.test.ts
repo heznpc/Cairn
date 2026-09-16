@@ -2,6 +2,14 @@ import { describe, expect, it } from "vitest";
 import { parseCliRequest } from "./cli-args.js";
 
 describe("parseCliRequest", () => {
+  it("parses a style brief and refuses silently ignored image options", () => {
+    expect(parseCliRequest(["brief", "map.json", "--style", "pictorial", "--reference", "ref.png", "-o", "brief.json"]))
+      .toEqual({ kind: "image-brief", input: "map.json", style: "pictorial", reference: "ref.png", output: "brief.json" });
+    expect(parseCliRequest(["brief"])).toEqual({ kind: "missing-document" });
+    expect(() => parseCliRequest(["brief", "map.json", "--style", "unknown"])).toThrow(/--style/);
+    expect(() => parseCliRequest(["brief", "map.json", "--theme", "mono"])).toThrow(/Unsupported brief options/);
+    expect(() => parseCliRequest(["Seoul", "--style", "schematic"])).toThrow(/require the brief command/);
+  });
   it("returns help with exit 1 when no args are provided", () => {
     expect(parseCliRequest([])).toEqual({ kind: "help", exitCode: 1 });
   });

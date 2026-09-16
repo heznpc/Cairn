@@ -4,6 +4,7 @@ import {
   MIN_CANVAS_DIMENSION_PX,
 } from "./limits.js";
 import { LATITUDE_RANGE, LONGITUDE_RANGE } from "./domain-values.js";
+import { IMAGE_STYLES } from "./image-styles.js";
 import { SUPPORTED_LABEL_LANGUAGES } from "./locale.js";
 import {
   RENDER_LAYOUTS,
@@ -19,6 +20,7 @@ import {
   generateMapOutputSchema,
   geocodeOutputSchema,
   renderDocumentOutputSchema,
+  imageBriefOutputSchema,
 } from "./tool-output-schemas.js";
 
 // `idempotentHint` is deliberately omitted (defaults to false per MCP spec).
@@ -38,6 +40,24 @@ const localAnnotations = {
 } as const;
 
 export const tools = [
+  {
+    name: "prepare_image_brief",
+    description: "Prepare a grounded prompt, geographic reference PNG/SVG and review checks for the host's image generator. " +
+      "Use an existing DiagramDocument from generate_map or render_document. Styles: schematic (compact yakdo), " +
+      "neighborhood (geographic context), pictorial (landmark icons). Uses the document's theme. " +
+      "Runs offline; does not call an image model. Host must generate and inspect the actual image.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        document: diagramDocumentJsonSchema,
+        style: { type: "string", enum: IMAGE_STYLES, description: "Image composition style (default schematic), independent of SVG template and color theme." },
+      },
+      required: ["document"],
+      additionalProperties: false,
+    },
+    outputSchema: imageBriefOutputSchema,
+    annotations: localAnnotations,
+  },
   {
     name: "generate_map",
     description:

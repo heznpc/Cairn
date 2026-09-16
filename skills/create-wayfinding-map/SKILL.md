@@ -1,15 +1,27 @@
 ---
 name: create-wayfinding-map
-description: Create, inspect, and iteratively refine printable wayfinding diagrams with cairn. Use when a user asks for a Korean-style yakdo, invitation map, campus or venue directions, a simplified route diagram, an address-to-SVG map, or revisions such as hiding landmarks, changing labels, moving markers, switching template/theme, or resizing an existing DiagramDocument.
+description: Create and refine wayfinding maps with cairn using editable SVG diagrams or grounded host-generated images in schematic, neighborhood, and pictorial styles. Use for address-based yakdo, venue directions, style comparisons, or revisions to an existing map.
 ---
 
 # Create Wayfinding Map
 
-Use cairn as the deterministic renderer and use the host model for intent,
-curation, and visual critique. Treat the returned `DiagramDocument` as the
-source of truth across edit turns.
+Use cairn for geographic evidence, reproducible image briefs and SVG rendering;
+use the host model for intent, curation, image generation and visual critique.
+Treat the `DiagramDocument` as the geographic source across edit turns. Generated
+pixels never become new evidence for street connectivity or place positions.
 
-## Workflow
+## Choose the output path
+
+- For image styling, pictogram illustration, or comparisons of visual styles,
+  use `prepare_image_brief` after resolving the document. Read
+  [references/image-workflow.md](references/image-workflow.md) for style choice,
+  host image-tool handoff and correction. A successful brief call alone is not
+  a finished image.
+- For editable vectors, deterministic output or a host without an image tool,
+  follow the SVG workflow below. Preserve an explicit format/style request;
+  do not silently substitute SVG for a requested generated image.
+
+## SVG Workflow
 
 1. Resolve only information that changes the result.
    - Require a destination address or an existing `DiagramDocument`.

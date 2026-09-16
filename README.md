@@ -21,7 +21,8 @@ Most maps are too accurate to be useful. Korean 약도 (yakdo) and Japanese 略�
 
 ## Currently implemented
 
-- **5 MCP tools** over stdio: `generate_map` (address → SVG + editable document), `render_document` (patch + re-render without network access), `geocode` (address → coords via Nominatim), `find_landmarks` (coords → POI list via Overpass), and `find_roads` (coords → simplified road polylines via Overpass).
+- **6 MCP tools** over stdio: `generate_map` (address → SVG + editable document), `render_document` (patch + re-render), `prepare_image_brief` (document → grounded host-image prompt + reference), `geocode`, `find_landmarks`, and `find_roads`.
+- **Host image workflow with three compositions.** `schematic` for compact yakdo, `neighborhood` for geographic context, and `pictorial` for landmark-led guides. Combine them with the existing four themes. Cairn prepares source-backed directions and a reference PNG/SVG; the host's image tool generates pixels and the host reviews spelling and placement. Image quality is not guaranteed by a successful brief call.
 - **Chat-first wayfinding skill** in [`skills/create-wayfinding-map`](skills/create-wayfinding-map/SKILL.md) — teaches compatible AI hosts to generate, visually inspect, patch, and re-render a map instead of accepting the first SVG draft.
 - **Zero-API-key path.** OSM Nominatim + Overpass only. No Mapbox / Google keys, no account, no quota signup.
 - **Works anywhere OSM does.** Place names come back exactly as OpenStreetMap has them, because a 약도 should read like the signs around it — `Rue de Rivoli` stays French. Only the labels cairn *generates* take a language, and that follows the destination's country: Seoul renders `여기` / `3번 출구`, Berlin `Hier` / `Ausgang 3`, Stockholm `Här`. Override with `--language`. The projection applies a cos(latitude) correction and a single uniform scale, so a Stockholm map keeps its true proportions instead of being stretched horizontally. POI lookups cover tram stops, ferry piers, supermarkets, and pharmacies, and query ways and relations so the polygon-mapped parks, hospitals, and schools common outside East Asia are visible.
@@ -210,6 +211,7 @@ document also removes it from the available approach network.
 |---|---|
 | `generate_map` | Address → SVG + editable document (set `roads: false` to skip the skeleton) |
 | `render_document` | Apply a minimal patch to an editable document and return revised SVG + document |
+| `prepare_image_brief` | Document + image style → prompt, geographic reference PNG/SVG, source facts and visual review checks; runs offline |
 | `geocode` | Address → ranked coordinates, candidates, and ambiguity flag |
 | `find_landmarks` | Coordinates → nearby points of interest |
 | `find_roads` | Coordinates → simplified road polylines, classified by tier |
@@ -220,6 +222,43 @@ Granular tools let an LLM compose smarter pipelines — for example, "find landm
 `template: "standard" | "compact" | "minimal" | "schematic" | "badge"`, and
 `theme: "paper" | "mono" | "civic" | "invitation"`. The old `preset` field
 remains an alias for `template`; `template` wins when both are supplied.
+
+## Host-generated image styles
+
+Use the packaged skill's [image workflow](skills/create-wayfinding-map/references/image-workflow.md)
+when a styled image is preferable to deterministic SVG. The host image tool is
+optional and external to the server; its availability and cost depend on the host.
+The default CLI/SVG path still needs no API key or image model.
+
+```bash
+cairn "서울 강남구 테헤란로 152" --label "강남파이낸스센터" --save-document office.json -o office.svg
+cairn brief office.json --style schematic -o brief.json --reference reference.png
+```
+
+Pass `brief.json`'s `prompt` and `reference.png` to the host image tool, then
+inspect the actual image with the returned checks. The CLI prepares the brief;
+it does not call a model. In MCP, `prepare_image_brief` also returns the reference
+as an `image/png` content block so a capable host can use it directly.
+
+| Image style | Information design |
+|---|---|
+| `schematic` | Few roads and landmarks, compressed distances, simple road bands |
+| `neighborhood` | More local streets, geographic angles and neighborhood context |
+| `pictorial` | Recognizable category icons with a simplified road skeleton |
+
+Image styles differ from SVG `template`. They use the document's `theme`
+(`paper`, `mono`, `civic`, `invitation`) and output aspect ratio. Change names,
+visibility or theme through document patches before rebuilding the brief.
+The brief preserves original geographic anchors even if decorative marker
+offsets are set. Road and landmark budgets vary by style; omissions are reported.
+
+Reference geometry and shared-node evidence constrain the prompt, not the image
+model's pixels. Coordinates alone do not establish building containment, usable
+entrances or pedestrian access. No walking route or building footprints are
+supplied by this tool. The host must catch misplaced icons, invented details and
+text errors. Retain the input document, brief, reference and any corrective
+prompts alongside the generated image. Repeated brief creation from identical
+inputs is reproducible; repeated image calls need not be.
 
 ## Why "cairn"?
 

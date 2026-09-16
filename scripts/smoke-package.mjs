@@ -121,6 +121,19 @@ if (readFileSync(cliPdfPath).subarray(0, 8).toString("ascii") !== "%PDF-1.4") {
   throw new Error("installed CLI did not export PDF");
 }
 
+const briefPath = join(installDir, "brief.json");
+const referencePath = join(installDir, "reference.png");
+run(process.execPath, [cliPath, "brief", cliDocumentPath, "--style", "pictorial", "-o", briefPath, "--reference", referencePath], { cwd: installDir });
+if (JSON.parse(readFileSync(briefPath, "utf8")).style !== "pictorial" ||
+    !readFileSync(referencePath).subarray(1, 4).equals(Buffer.from("PNG"))) {
+  throw new Error("installed CLI did not export an image brief/reference");
+}
+let sourceOverwriteRefused = false;
+try {
+  run(process.execPath, [cliPath, "brief", cliDocumentPath, "-o", cliDocumentPath], { cwd: installDir });
+} catch { sourceOverwriteRefused = true; }
+if (!sourceOverwriteRefused) throw new Error("brief overwrote its source document");
+
 const cliSvg = readFileSync(cliSvgPath, "utf8");
 if (!cliSvg.includes('data-route-mode="osm-network"') || !cliSvg.includes('data-approach-network="true"')) {
   throw new Error("installed CLI lost the node-connected approach");
@@ -144,7 +157,7 @@ try {
   await client.connect(transport);
   const result = await client.listTools();
   const names = result.tools.map((tool) => tool.name).sort();
-  const expected = ["find_landmarks", "find_roads", "generate_map", "geocode", "render_document"];
+  const expected = ["find_landmarks", "find_roads", "generate_map", "geocode", "prepare_image_brief", "render_document"];
   if (JSON.stringify(names) !== JSON.stringify(expected)) {
     throw new Error(\`unexpected tools: \${names.join(", ")}\`);
   }
@@ -191,6 +204,14 @@ try {
       },
     },
   });
+  for (const style of ["schematic", "neighborhood", "pictorial"]) {
+    const brief = await client.callTool({ name: "prepare_image_brief", arguments: { document, style } });
+    if (brief.isError || brief.structuredContent?.style !== style) throw new Error("installed image brief failed");
+    const image = brief.content.find((item) => item.type === "image");
+    if (!image || Buffer.from(image.data, "base64").subarray(1, 4).toString() !== "PNG") {
+      throw new Error("installed image brief did not return a reference PNG");
+    }
+  }
   if (rendered.isError) throw new Error("installed render_document returned an error");
   if (rendered.structuredContent?.document?.render?.theme !== "mono") {
     throw new Error("installed render_document did not return the patched document");
@@ -226,6 +247,7 @@ import { artifactFormatFromPath, encodeMapArtifact } from "${packageName}/export
 import { renderSVG } from "${packageName}/render";
 import { RENDER_TEMPLATES, RENDER_THEMES } from "${packageName}/options";
 import { generateMap } from "${packageName}/pipeline";
+import { prepareImageBrief } from "${packageName}/image-brief";
 import * as types from "${packageName}/types";
 
 const map = {
@@ -248,6 +270,9 @@ const document = createDiagramDocument(map, {
   overrides: { landmarks: { gate: { position: { x: 0.25, y: 0.25 } } } },
 });
 const svg = renderDiagramDocument(JSON.parse(JSON.stringify(document)));
+if (prepareImageBrief(document, "neighborhood").style !== "neighborhood") {
+  throw new Error("image-brief subpath did not prepare a neighborhood brief");
+}
 if (!svg.includes('data-template="standard"') || !svg.includes('data-theme="civic"')) {
   throw new Error("document subpath did not preserve template/theme");
 }

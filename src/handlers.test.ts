@@ -25,6 +25,12 @@ import type { MapLayout } from "./types.js";
 
 const ajv = new Ajv({ strict: false, allErrors: true });
 
+function textAt(result: Awaited<ReturnType<typeof dispatchTool>>, index: number): string {
+  const block = result.content[index];
+  if (block.type !== "text") throw new Error(`Expected text at content[${index}]`);
+  return block.text;
+}
+
 function validatorFor(toolName: string) {
   const tool = tools.find((t) => t.name === toolName);
   if (!tool) throw new Error(`tool not found: ${toolName}`);
@@ -47,9 +53,9 @@ beforeEach(() => {
 });
 
 describe("tool registry", () => {
-  it("exposes exactly the five documented tools", () => {
+  it("exposes exactly the six documented tools", () => {
     expect(tools.map((t) => t.name).sort()).toEqual(
-      ["find_landmarks", "find_roads", "generate_map", "geocode", "render_document"].sort(),
+      ["find_landmarks", "find_roads", "generate_map", "geocode", "render_document", "prepare_image_brief"].sort(),
     );
   });
 
@@ -58,7 +64,7 @@ describe("tool registry", () => {
       expect(t.outputSchema, `outputSchema missing on ${t.name}`).toBeTruthy();
       expect(t.annotations, `annotations missing on ${t.name}`).toMatchObject({
         readOnlyHint: true,
-        openWorldHint: t.name === "render_document" ? false : true,
+        openWorldHint: !["render_document", "prepare_image_brief"].includes(t.name),
       });
     }
   });
@@ -111,6 +117,29 @@ describe("tool registry", () => {
 
     expect(ok).toBe(false);
     expect(validate.errors?.some((error) => error.keyword === "maximum")).toBe(true);
+  });
+});
+
+describe("prepare_image_brief", () => {
+  const document = createDiagramDocument({
+    center: { lat: 37.5, lon: 127, label: "목적지" }, landmarks: [], roads: [],
+    bbox: { north: 37.501, south: 37.499, east: 127.001, west: 126.999 },
+  });
+  it.each(["schematic", "neighborhood", "pictorial"])("returns a grounded %s prompt and real PNG offline", async (style) => {
+    const result = await dispatchTool("prepare_image_brief", { document, style });
+    expect(result.isError).toBeUndefined();
+    const validate = validatorFor("prepare_image_brief");
+    expect(validate(result.structuredContent), JSON.stringify(validate.errors)).toBe(true);
+    const png = result.content.find((c) => c.type === "image");
+    expect(png?.type).toBe("image");
+    if (png?.type === "image") expect(Buffer.from(png.data, "base64").subarray(1, 4).toString()).toBe("PNG");
+    expect(generateMap).not.toHaveBeenCalled();
+    expect(findRoads).not.toHaveBeenCalled();
+  });
+  it("rejects unknown styles at both public and runtime boundaries", async () => {
+    const args = { document, style: "imaginary" };
+    expect(inputValidatorFor("prepare_image_brief")(args)).toBe(false);
+    expect((await dispatchTool("prepare_image_brief", args)).isError).toBe(true);
   });
 });
 
@@ -183,7 +212,7 @@ describe("dispatchTool — outputSchema ↔ structuredContent contract", () => {
     expect(result.isError).toBeFalsy();
     expect(result.content).toHaveLength(2);
 
-    const summary = result.content[1].text;
+    const summary = textAt(result, 1);
     expect(summary).toContain(`${layout.landmarks.length} landmarks`);
     expect(summary).toContain(layout.center.lat.toFixed(5));
     expect(summary).toContain(layout.center.lon.toFixed(5));
@@ -242,9 +271,9 @@ describe("dispatchTool — outputSchema ↔ structuredContent contract", () => {
     });
 
     expect(invalidPosition.isError).toBe(true);
-    expect(invalidPosition.content[0].text).toContain("less than or equal to 1");
+    expect(textAt(invalidPosition, 0)).toContain("less than or equal to 1");
     expect(unknownId.isError).toBe(true);
-    expect(unknownId.content[0].text).toContain("Unknown landmark id: ghost");
+    expect(textAt(unknownId, 0)).toContain("Unknown landmark id: ghost");
   });
 
   it("geocode passes through Nominatim raw payload when present", async () => {
@@ -434,7 +463,7 @@ describe("dispatchTool — error paths", () => {
   it("unknown tool name returns isError without throwing", async () => {
     const result = await dispatchTool("nonexistent_tool", {});
     expect(result.isError).toBe(true);
-    expect(result.content[0].text).toMatch(/Unknown tool/);
+    expect(textAt(result, 0)).toMatch(/Unknown tool/);
   });
 
   it("invalid zod input returns isError without throwing", async () => {
@@ -442,7 +471,7 @@ describe("dispatchTool — error paths", () => {
     // validation, return isError, and surface a useful message.
     const result = await dispatchTool("generate_map", { address: 42 });
     expect(result.isError).toBe(true);
-    expect(result.content[0].text).toMatch(/cairn error/);
+    expect(textAt(result, 0)).toMatch(/cairn error/);
     // pipeline must NOT have been called when input validation rejects.
     expect(generateMap).not.toHaveBeenCalled();
   });
@@ -454,7 +483,7 @@ describe("dispatchTool — error paths", () => {
     });
 
     expect(result.isError).toBe(true);
-    expect(result.content[0].text).toMatch(/less than or equal to 4000/);
+    expect(textAt(result, 0)).toMatch(/less than or equal to 4000/);
     expect(generateMap).not.toHaveBeenCalled();
   });
 
@@ -465,7 +494,7 @@ describe("dispatchTool — error paths", () => {
     });
 
     expect(result.isError).toBe(true);
-    expect(result.content[0].text).toMatch(/layout/);
+    expect(textAt(result, 0)).toMatch(/layout/);
     expect(generateMap).not.toHaveBeenCalled();
   });
 
@@ -476,7 +505,7 @@ describe("dispatchTool — error paths", () => {
     });
 
     expect(result.isError).toBe(true);
-    expect(result.content[0].text).toMatch(/preset/);
+    expect(textAt(result, 0)).toMatch(/preset/);
     expect(generateMap).not.toHaveBeenCalled();
   });
 
@@ -487,7 +516,7 @@ describe("dispatchTool — error paths", () => {
     });
 
     expect(result.isError).toBe(true);
-    expect(result.content[0].text).toMatch(/tilt/);
+    expect(textAt(result, 0)).toMatch(/tilt/);
     expect(generateMap).not.toHaveBeenCalled();
   });
 
@@ -498,7 +527,7 @@ describe("dispatchTool — error paths", () => {
     });
 
     expect(result.isError).toBe(true);
-    expect(result.content[0].text).toMatch(/language/);
+    expect(textAt(result, 0)).toMatch(/language/);
     expect(generateMap).not.toHaveBeenCalled();
   });
 
@@ -527,7 +556,7 @@ describe("dispatchTool — error paths", () => {
     });
 
     expect(result.isError).toBe(true);
-    expect(result.content[0].text).toMatch(/less than or equal to 90/);
+    expect(textAt(result, 0)).toMatch(/less than or equal to 90/);
     expect(findLandmarks).not.toHaveBeenCalled();
   });
 
@@ -535,6 +564,6 @@ describe("dispatchTool — error paths", () => {
     vi.mocked(searchGeocode).mockRejectedValue(new Error("Nominatim down"));
     const result = await dispatchTool("geocode", { address: "Seoul" });
     expect(result.isError).toBe(true);
-    expect(result.content[0].text).toContain("Nominatim down");
+    expect(textAt(result, 0)).toContain("Nominatim down");
   });
 });

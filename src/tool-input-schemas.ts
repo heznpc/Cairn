@@ -15,6 +15,7 @@ import {
   DiagramDocumentSchema,
 } from "./diagram-schema.js";
 import { SUPPORTED_LABEL_LANGUAGES } from "./locale.js";
+import { IMAGE_STYLES } from "./image-styles.js";
 
 // `language` is a generate-time argument only: it selects the wording for
 // labels cairn generates. render_document takes no language because names are
@@ -63,6 +64,11 @@ export const GenerateMapArgs = z.object({
 export const RenderDocumentArgs = z.object({
   document: DiagramDocumentSchema.describe("DiagramDocument returned by generate_map or a previous render_document call"),
   patch: DiagramDocumentPatchSchema.optional().describe("Minimal changes to apply before rendering"),
+}).strict();
+
+export const PrepareImageBriefArgs = z.object({
+  document: DiagramDocumentSchema,
+  style: z.enum(IMAGE_STYLES).optional(),
 }).strict();
 
 export const GeocodeArgs = z.object({

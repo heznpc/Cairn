@@ -5,6 +5,32 @@ import {
   roadItemJsonSchema,
 } from "./diagram-json-schema.js";
 import { LATITUDE_RANGE, LONGITUDE_RANGE } from "./domain-values.js";
+import { RENDER_THEMES } from "./domain-values.js";
+import { IMAGE_STYLES } from "./image-styles.js";
+
+export const imageBriefOutputSchema = {
+  type: "object",
+  required: ["version", "style", "theme", "canvas", "prompt", "referenceSvg", "facts", "checks", "warnings"],
+  additionalProperties: false,
+  properties: {
+    version: { type: "integer", const: 1 },
+    style: { type: "string", enum: IMAGE_STYLES },
+    theme: { type: "string", enum: RENDER_THEMES },
+    canvas: { type: "object", required: ["width", "height"], additionalProperties: false,
+      properties: { width: { type: "integer" }, height: { type: "integer" } } },
+    prompt: { type: "string", description: "Directions for the host's image tool. Pass with the reference image; not itself a generated map." },
+    referenceSvg: { type: "string", description: "North-up geographic reference; the tool also returns this as an image/png content block." },
+    facts: { type: "object", required: ["destination", "landmarks", "roads", "sharedNodes", "roadRelations", "requestedStart"],
+      additionalProperties: false, properties: {
+        destination: { type: "object" }, landmarks: { type: "array", items: { type: "object" } },
+        roads: { type: "array", items: { type: "object" } }, sharedNodes: { type: "array", items: { type: "object" } },
+        roadRelations: { type: "array", items: { type: "object" } },
+        requestedStart: { type: ["string", "null"] },
+      } },
+    checks: { type: "array", items: { type: "string" } },
+    warnings: { type: "array", items: { type: "string" } },
+  },
+} as const;
 
 // MCP 2025-06-18 spec §tools.outputSchema. Host LLMs validate structuredContent
 // against these and can read results structurally instead of parsing text.

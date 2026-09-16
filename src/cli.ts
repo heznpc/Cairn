@@ -13,6 +13,7 @@ import { HELP, parseCliRequest } from "./cli-args.js";
 import { parseDiagramDocument } from "./diagram-schema.js";
 import { renderDiagramDocument } from "./diagram-document.js";
 import { artifactFormatFromPath, encodeMapArtifact } from "./export.js";
+import { prepareImageBrief } from "./image-brief.js";
 
 async function main() {
   const argv = process.argv.slice(2);
@@ -52,6 +53,20 @@ async function main() {
     mkdirSync(request.target, { recursive: true });
     cpSync(source, destination, { recursive: true, errorOnExist: true, force: false });
     console.log(destination);
+    return;
+  }
+
+  if (request.kind === "image-brief") {
+    const paths = [request.input, request.output, request.reference].filter((p): p is string => Boolean(p)).map((p) => resolve(p));
+    if (new Set(paths).size !== paths.length) throw new Error("Document, brief and reference must use different paths");
+    if (request.reference) artifactFormatFromPath(request.reference);
+    const document = parseDiagramDocument(JSON.parse(readFileSync(request.input, "utf8")));
+    const brief = prepareImageBrief(document, request.style);
+    if (request.reference) writeArtifact(request.reference, brief.referenceSvg, brief.canvas);
+    const json = `${JSON.stringify(brief, null, 2)}\n`;
+    if (request.output) writeFileSync(request.output, json, "utf8");
+    else process.stdout.write(json);
+    console.error(`✓ ${brief.style} image brief prepared; host image generation and visual review still required`);
     return;
   }
 
