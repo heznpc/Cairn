@@ -45,6 +45,23 @@ const Road = z.object({
   name: z.string().optional(),
   class: z.enum(ROAD_CLASSES),
   points: z.array(z.object({ lat: Latitude, lon: Longitude }).strict()),
+  nodes: z.array(z.object({
+    id: z.string().min(IDENTIFIER_MIN_LENGTH),
+    lat: Latitude,
+    lon: Longitude,
+    tags: z.record(z.string()).optional(),
+    barriers: z.array(z.object({
+      id: z.string().min(IDENTIFIER_MIN_LENGTH),
+      tags: z.record(z.string()),
+    }).strict()).optional(),
+  }).strict()).min(2).optional(),
+  tags: z.record(z.string()).optional(),
+}).strict();
+
+const BuildingRing = z.array(z.object({ lat: Latitude, lon: Longitude }).strict()).min(4);
+const Building = z.object({
+  id: z.string().min(1), name: z.string().optional(), tags: z.record(z.string()),
+  polygons: z.array(z.object({ outer: BuildingRing, holes: z.array(BuildingRing) }).strict()).min(1),
 }).strict();
 
 const MapLayout = z.object({
@@ -55,6 +72,8 @@ const MapLayout = z.object({
   }).strict(),
   landmarks: z.array(Landmark),
   roads: z.array(Road),
+  buildings: z.array(Building).optional(),
+  buildingContext: z.object({ source: z.literal("OpenStreetMap"), status: z.enum(["fetched", "unavailable", "not-requested"]), radiusMeters: Coordinate.positive() }).strict().optional(),
   bbox: z.object({
     north: Latitude,
     south: Latitude,

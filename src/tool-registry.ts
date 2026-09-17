@@ -4,6 +4,7 @@ import {
   MIN_CANVAS_DIMENSION_PX,
 } from "./limits.js";
 import { LATITUDE_RANGE, LONGITUDE_RANGE } from "./domain-values.js";
+import { IMAGE_STYLES } from "./image-styles.js";
 import { SUPPORTED_LABEL_LANGUAGES } from "./locale.js";
 import {
   RENDER_LAYOUTS,
@@ -16,9 +17,11 @@ import {
   diagramDocumentPatchJsonSchema,
   findLandmarksOutputSchema,
   findRoadsOutputSchema,
+  findBuildingsOutputSchema,
   generateMapOutputSchema,
   geocodeOutputSchema,
   renderDocumentOutputSchema,
+  imageBriefOutputSchema,
 } from "./tool-output-schemas.js";
 
 // `idempotentHint` is deliberately omitted (defaults to false per MCP spec).
@@ -39,15 +42,35 @@ const localAnnotations = {
 
 export const tools = [
   {
+    name: "prepare_image_brief",
+    description: "Render a deterministic pictogram map and road blueprint (PNG/SVG), with source facts and an optional host-image prompt. " +
+      "Use an existing DiagramDocument from generate_map or render_document. Styles: editorial (block-preserving pictogram guide), schematic (compact yakdo), " +
+      "neighborhood (geographic context), pictorial (landmark icons, default). Uses the document's theme. " +
+      "Runs offline; does not call an image model. mapSvg and the second PNG are drafts; editorial designReview reports measured failures and pending visual review. Geometry success is not design acceptance.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        document: diagramDocumentJsonSchema,
+        style: { type: "string", enum: IMAGE_STYLES, description: "Image composition style (default pictorial), independent of SVG template and color theme." },
+      },
+      required: ["document"],
+      additionalProperties: false,
+    },
+    outputSchema: imageBriefOutputSchema,
+    annotations: localAnnotations,
+  },
+  {
     name: "generate_map",
     description:
       "Generate a pictogram-style wayfinding map SVG for an address. " +
       "Returns ready-to-print SVG plus an editable DiagramDocument suitable for iterative " +
-      "chat revisions. One-shot: geocode -> find landmarks -> curate -> render.",
+      "chat revisions. If multiple locations match, returns an error listing candidates; " +
+      "retry with a chosen candidateId or a more specific address.",
     inputSchema: {
       type: "object",
       properties: {
         address: { type: "string", description: "Street address or place name" },
+        candidateId: { type: "string", minLength: 1, description: "Stable candidateId returned by geocode; selects a location when the address is ambiguous." },
         label: { type: "string", description: 'Destination label (default: localized "Here")' },
         language: {
           type: "string",
@@ -78,6 +101,7 @@ export const tools = [
           enum: RENDER_PRESETS,
           description: "Compatibility alias for template. Ignored when template is also provided.",
         },
+        buildings: { type: "boolean", description: "Fetch actual surrounding building footprints (default on with roads)" },
         roads: { type: "boolean", description: "Draw the road skeleton (default true)" },
         focus: { type: "boolean", description: "Fisheye-emphasize the destination area for map-skeleton diagram presets: standard, compact, schematic (default false)" },
       },
@@ -110,7 +134,8 @@ export const tools = [
     name: "geocode",
     description:
       "Convert an address or place name to coordinates via OpenStreetMap Nominatim. " +
-      "No API key required. Use this when you want to do landmark curation in the host LLM.",
+      "Returns up to five candidates and an ambiguous flag. Top-level coordinates are the first " +
+      "ranked match, not a confirmed selection. Pass the chosen candidateId to generate_map. No API key required.",
     inputSchema: {
       type: "object",
       properties: { address: { type: "string" } },
@@ -157,5 +182,17 @@ export const tools = [
     },
     outputSchema: findRoadsOutputSchema,
     annotations: safeAnnotations,
+  },
+  {
+    name: "find_buildings",
+    description: "Fetch actual OpenStreetMap building outlines and courtyard holes near coordinates. Returns raw source polygons for map.buildings; coverage is partial. No invented parcels, subdivisions or entrances.",
+    inputSchema: {
+      type: "object", additionalProperties: false, required: ["lat", "lon"],
+      properties: {
+        lat: { type: "number", ...LATITUDE_RANGE }, lon: { type: "number", ...LONGITUDE_RANGE },
+        radiusMeters: { type: "integer", minimum: 1, maximum: MAX_RADIUS_METERS, description: "Default 480, max 5000" },
+      },
+    },
+    outputSchema: findBuildingsOutputSchema, annotations: safeAnnotations,
   },
 ];
