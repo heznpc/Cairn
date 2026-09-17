@@ -18,6 +18,7 @@ export const imageBriefOutputSchema = {
     theme: { type: "string", enum: RENDER_THEMES },
     canvas: { type: "object", required: ["width", "height"], additionalProperties: false,
       properties: { width: { type: "integer" }, height: { type: "integer" } } },
+    designContract: { type: "object", description: "Versioned visual criteria, evidence classifications and renderer tokens. Prototype status is not a passed visual review." },
     prompt: { type: "string", description: "Directions for the host's image tool. Pass with the reference image; not itself a generated map." },
     referenceSvg: { type: "string", description: "Code-built display road blueprint, also returned as the first PNG." },
     sourceReferenceSvg: { type: "string", description: "Unmodified source road geometry for geographic comparison." },

@@ -1,5 +1,5 @@
 /** Host image directions, independent of the deterministic SVG templates. */
-export const IMAGE_STYLES = ["schematic", "neighborhood", "pictorial"] as const;
+export const IMAGE_STYLES = ["schematic", "neighborhood", "pictorial", "editorial"] as const;
 export type ImageStyle = (typeof IMAGE_STYLES)[number];
 
 export const IMAGE_STYLE_PROFILES: Record<ImageStyle, {
@@ -8,6 +8,18 @@ export const IMAGE_STYLE_PROFILES: Record<ImageStyle, {
   landmarkLimit: number;
   instructions: string;
 }> = {
+  editorial: {
+    purpose: "Destination-first pictogram insert based on a recorded visual design contract",
+    roadGroups: 3,
+    landmarkLimit: 4,
+    instructions: "Use a quiet neutral ground with white street bands, one destination accent, " +
+      "a consistent monochrome pictogram family, and a compact heading outside the map. " +
+      "Give the destination a full-name label plaque. Keep literal station and exit labels prominent. " +
+      "The ground is abstract negative space, never a claim of building or park boundaries. " +
+      "Keep the supplied display-road paths and geographic anchors, including actual bends. " +
+      "Do not add lanes, decorative junctions, routes, footprints or unsupported transit-line colors. " +
+      "Review the rendered result against designContract; its status is a prototype, not validated audience preference.",
+  },
   schematic: {
     purpose: "Compact Korean yakdo for business cards and direction inserts",
     roadGroups: 4,

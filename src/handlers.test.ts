@@ -125,7 +125,7 @@ describe("prepare_image_brief", () => {
     center: { lat: 37.5, lon: 127, label: "목적지" }, landmarks: [], roads: [],
     bbox: { north: 37.501, south: 37.499, east: 127.001, west: 126.999 },
   });
-  it.each(["schematic", "neighborhood", "pictorial"])("returns a grounded %s prompt and real PNG offline", async (style) => {
+  it.each(["schematic", "neighborhood", "pictorial", "editorial"])("returns a grounded %s prompt and real PNG offline", async (style) => {
     const result = await dispatchTool("prepare_image_brief", { document, style });
     expect(result.isError).toBeUndefined();
     const validate = validatorFor("prepare_image_brief");

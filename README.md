@@ -22,7 +22,7 @@ Most maps are too accurate to be useful. Korean 약도 (yakdo) and Japanese 略�
 ## Currently implemented
 
 - **6 MCP tools** over stdio: `generate_map` (address → SVG + editable document), `render_document` (patch + re-render), `prepare_image_brief` (document → deterministic pictogram map, road blueprint and optional host-image prompt), `geocode`, `find_landmarks`, and `find_roads`.
-- **Three map compositions.** `schematic` for compact yakdo, `neighborhood` for geographic context, and `pictorial` for landmark-led guides. Cairn renders the road paths, pictograms and literal labels in code. A host image tool can optionally restyle the blueprint, but those generated pixels require separate visual review.
+- **Pictogram maps with reviewable design criteria.** `pictorial` is the default; the new `editorial` prototype adds a destination plaque, quiet ground, consistent symbols and focused framing. `schematic` and `neighborhood` remain available. Cairn renders the road paths, pictograms and literal labels in code. Optional host-generated restyles require separate visual review.
 - **Chat-first wayfinding skill** in [`skills/create-wayfinding-map`](skills/create-wayfinding-map/SKILL.md) — teaches compatible AI hosts to generate, visually inspect, patch, and re-render a map instead of accepting the first SVG draft.
 - **Zero-API-key path.** OSM Nominatim + Overpass only. No Mapbox / Google keys, no account, no quota signup.
 - **Works anywhere OSM does.** Place names come back exactly as OpenStreetMap has them, because a 약도 should read like the signs around it — `Rue de Rivoli` stays French. Only the labels cairn *generates* take a language, and that follows the destination's country: Seoul renders `여기` / `3번 출구`, Berlin `Hier` / `Ausgang 3`, Stockholm `Här`. Override with `--language`. The projection applies a cos(latitude) correction and a single uniform scale, so a Stockholm map keeps its true proportions instead of being stretched horizontally. POI lookups cover tram stops, ferry piers, supermarkets, and pharmacies, and query ways and relations so the polygon-mapped parks, hospitals, and schools common outside East Asia are visible.
@@ -237,7 +237,7 @@ cairn brief office.json --style schematic -o brief.json --reference reference.pn
 
 `map.png` is the code-rendered map; `--map` also accepts `.svg` and `.pdf`.
 Its road paths are identical to those in `reference.png`. Connected source ways
-are joined by OSM node identity. In schematic and pictorial styles, sufficiently
+are joined by OSM node identity. In schematic, pictorial and editorial styles, sufficiently
 straight, overlapping, opposite one-way carriageways can share one centerline;
 real bends and staggered junctions remain. `sourceReferenceSvg` retains the
 selected source geometry for comparison. In MCP, the first PNG is the blueprint
@@ -249,9 +249,23 @@ checks. The CLI does not call a model.
 
 | Image style | Information design |
 |---|---|
+| `editorial` | Visitor insert: destination plaque, monochrome pictograms, white streets, focused map panel; prototype with a recorded design contract |
 | `schematic` | Few roads and landmarks, compact line icons, simple road bands |
 | `neighborhood` | More local streets, geographic angles and neighborhood context |
-| `pictorial` | Recognizable category icons with a simplified road skeleton |
+| `pictorial` (default) | Recognizable category icons with a simplified road skeleton |
+
+`editorial` returns a versioned `designContract` separating reference observations,
+user preferences and untested design hypotheses. Its tokens drive the renderer;
+its criteria guide visual review. It retains up to four landmarks and three road
+groups and uniformly fits their extent without changing geographic angles.
+The background is an abstract field, not building-footprint data. This is a
+design prototype, not measured audience preference. To compare it with the
+previous pictorial renderer using the same source document:
+
+```bash
+npm run build
+node scripts/compare-map-design.mjs office.json tmp/comparison
+```
 
 Image styles differ from SVG `template`. They use the document's `theme`
 (`paper`, `mono`, `civic`, `invitation`) and output aspect ratio. Change names,

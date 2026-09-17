@@ -1,14 +1,54 @@
 # Grounded image workflow
 
+## Record a visual brief before changing the design
+
+Separate reference observations, explicit user preferences, and design
+hypotheses. A search-results screenshot or a commercial portfolio is evidence
+of available formats, not population preference. Record the intended delivery
+size and what information the reader must locate. Do not turn one user's choice
+into a universal aesthetic rule.
+
+`editorial` is the first contract-driven prototype: a quiet gray field, white
+streets, a single destination accent and a consistent pictogram family. It
+selects three street groups and four landmarks, then fits their geographic
+envelope uniformly inside a separate map panel. The field is negative space,
+not surveyed block/building geometry. It returns `designContract` with evidence
+classifications, versioned renderer tokens and review criteria; its status is
+`prototype-unvalidated`, never an automatic visual pass.
+
+This direction draws on the user-supplied Korean commercial-map examples and
+the user's request for pictograms and editable vectors. Commercial services
+also distinguish simple line/text maps from image-rich maps and request style,
+color and font samples ([example](https://kmong.com/gig/641729)). This supports
+keeping separate visual briefs; it does not prove which style people prefer.
+
+Review the actual PNG at delivery size against the previous output: destination
+recognition, useful station/exit context, cohesive symbols, correct geography,
+and readable labels. A revision must preserve previously accepted properties.
+Record any visual failure with the artifact and criterion it violates, then
+change the relevant composition/token/layout rule and rerender. Do not report
+test counts as evidence of aesthetic success. In a repository checkout:
+
+```bash
+npm run build
+node scripts/compare-map-design.mjs office.json tmp/comparison
+```
+
+This produces both editable SVGs, PNGs, briefs, a shared source document, a
+600-pixel review image, a side-by-side comparison and a pending `review.json`.
+Inspect the artifacts and fill the observations; do not infer a pass from file
+creation. No image model is called.
+
 ## Style is information design, theme is appearance
 
 | Style | Use when | Keep / simplify |
 |---|---|---|
+| `editorial` | A destination-first visitor insert with restrained pictograms | Quiet ground/white streets, destination plaque, separate heading, focused crop; inspect against its recorded design contract |
 | `schematic` | Business cards, direction inserts, Korean 약도 | A few essential streets and landmarks; compact line icons; preserve display paths, road-side relationships and intersection order |
 | `neighborhood` | Visitors need surrounding streets and geographic context | More local streets and POIs; keep orientation, angles and relative distances |
 | `pictorial` | Venue or event visitors benefit from recognizable symbols | A readable street skeleton with a consistent family of larger landmark pictograms |
 
-Infer style from the request. “약도” defaults to schematic; “surrounding area”
+Infer style from the request. Pictogram-led “약도” defaults to pictorial; “surrounding area”
 suggests neighborhood; “recognizable icons” suggests pictorial. Do not force
 every request into the most simplified style. Generate several only when the
 user asks to compare. Colors remain independent: use the document's existing
@@ -18,7 +58,7 @@ user asks to compare. Colors remain independent: use the document's existing
 
 1. Use an existing `DiagramDocument`, or call `generate_map` with the resolved
    address and an appropriate landmark limit (4 / 8 / 6 are useful starting
-   points for the three styles). Retain the document. Resolve ambiguous
+   points for the legacy styles; editorial retains 4 landmarks). Retain the document. Resolve ambiguous
    destinations before image generation as in the main workflow.
 2. Put truthful label edits and hidden places into the document with
    `render_document`. Shorten a long institution name only when its identity

@@ -8,6 +8,7 @@ import { roadContinuities } from "./road-continuity.js";
 import { buildDisplayRoads, type DisplayRoad } from "./render/display-roads.js";
 import { displayRoadPaths, renderBriefMap } from "./render/brief-map.js";
 import { pictogramKind } from "./render/pictograms.js";
+import { EDITORIAL_DESIGN, editorialFrame } from "./design-contract.js";
 import type { DiagramDocument, Road, RenderTheme } from "./types.js";
 
 const THEME_DIRECTIONS: Record<RenderTheme, string> = {
@@ -29,7 +30,7 @@ export const IMAGE_REVIEW_CHECKS = [
 ] as const;
 
 /** Pure, offline preparation. The host owns image generation and visual review. */
-export function prepareImageBrief(input: DiagramDocument, style: ImageStyle = "schematic") {
+export function prepareImageBrief(input: DiagramDocument, style: ImageStyle = "pictorial") {
   const document = parseDiagramDocument(input);
   if (!isImageStyle(style)) throw new Error(`Unknown image style: ${style}`);
   const map = applyDiagramOverrides(document.map, document.overrides);
@@ -58,7 +59,23 @@ export function prepareImageBrief(input: DiagramDocument, style: ImageStyle = "s
     width: 1200,
     height: Math.max(600, Math.min(1600, Math.round(1200 * document.canvas.height / document.canvas.width))),
   };
-  const { project } = createProjection(map, canvas.width, canvas.height, { layout: "geographic" });
+  const frame = style === "editorial" ? editorialFrame(canvas) : { x: 0, y: 0, ...canvas };
+  // Fit the curated destination/landmark envelope, using one scale for both
+  // axes. Cropping changes the composition, never road angles or topology.
+  const selected = [map.center, ...landmarks];
+  const latPad = EDITORIAL_DESIGN.tokens.focusPaddingMeters / 111_320;
+  const lonPad = latPad / Math.max(.01, Math.cos(map.center.lat * Math.PI / 180));
+  const viewport = style === "editorial" && landmarks.length ? {
+    north: Math.min(map.bbox.north, Math.max(...selected.map((p) => p.lat)) + latPad),
+    south: Math.max(map.bbox.south, Math.min(...selected.map((p) => p.lat)) - latPad),
+    east: Math.min(map.bbox.east, Math.max(...selected.map((p) => p.lon)) + lonPad),
+    west: Math.max(map.bbox.west, Math.min(...selected.map((p) => p.lon)) - lonPad),
+  } : map.bbox;
+  const base = createProjection({ ...map, bbox: viewport }, frame.width, frame.height, { layout: "geographic" });
+  const project = (lat: number, lon: number): [number, number] => {
+    const [x, y] = base.project(lat, lon);
+    return [x + frame.x, y + frame.y];
+  };
   const anchor = (lat: number, lon: number) => {
     const [x, y] = project(lat, lon);
     return { x: round(x / canvas.width), y: round(y / canvas.height) };
@@ -115,6 +132,7 @@ export function prepareImageBrief(input: DiagramDocument, style: ImageStyle = "s
     "Create a wayfinding map from the attached cairn geographic reference and the source facts below.",
     `Style: ${style}. Purpose: ${profile.purpose}.`, profile.instructions,
     `Theme: ${document.render.theme}. ${THEME_DIRECTIONS[document.render.theme]}`,
+    ...(style === "editorial" ? ["DESIGN_CONTRACT_JSON", JSON.stringify(EDITORIAL_DESIGN), "END_DESIGN_CONTRACT_JSON"] : []),
     `Output aspect ratio: ${document.canvas.width}:${document.canvas.height}.`,
     "The attached reference is a code-built road blueprint. D is the destination, L labels are landmarks, S labels are display streets; source R segments are retained in the facts and sourceReferenceSvg. Do not print these reference keys in the final artwork. DisplayRoads already join connected segments and, where supported, collapse opposite carriageways onto a single continuous centerline. Preserve this exact road layer: do not reconstruct its junctions from separate source segments. DisplayNodes record the display positions of source junctions after this cartographic simplification.",
     "mapSvg is the finished deterministic map with the same road paths, geographic pictograms and code-rendered literal labels. Use mapSvg for a geometry-stable SVG/PNG/PDF deliverable. A generative restyle is an optional illustration, not a replacement for the verified road layer; it still needs visual review and must not be presented as geometrically locked.",
@@ -130,7 +148,8 @@ export function prepareImageBrief(input: DiagramDocument, style: ImageStyle = "s
     "Review before delivery:", ...IMAGE_REVIEW_CHECKS,
   ].join("\n\n");
   return { version: 1 as const, style, theme: document.render.theme, canvas, prompt, referenceSvg, sourceReferenceSvg, mapSvg,
-    facts, checks: [...IMAGE_REVIEW_CHECKS], warnings };
+    facts, checks: [...IMAGE_REVIEW_CHECKS, ...(style === "editorial" ? EDITORIAL_DESIGN.criteria.map((item) => item.check) : [])], warnings,
+    ...(style === "editorial" ? { designContract: structuredClone(EDITORIAL_DESIGN) } : {}) };
 }
 
 export type ImageBrief = ReturnType<typeof prepareImageBrief>;
@@ -220,7 +239,7 @@ function selectRoads(roads: Road[], center: { lat: number; lon: number }, budget
 
 function referenceMap(canvas: ImageBriefCanvas, facts: ReferenceFacts, displayRoads?: DisplayRoad[], style: ImageStyle = "pictorial"): string {
   const px = (p: { x: number; y: number }) => [p.x * canvas.width, p.y * canvas.height];
-  const paths = displayRoads ? displayRoadPaths(displayRoads, canvas, "#adb3b8", style) + displayRoads.map((road) => {
+  const paths = displayRoads ? displayRoadPaths(displayRoads, canvas, style === "editorial" ? EDITORIAL_DESIGN.tokens.road : "#adb3b8", style) + displayRoads.map((road) => {
     const a = road.points[0], b = road.points[road.points.length - 1];
     const [x, y] = px({ x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 });
     return `<text x="${x}" y="${y - 20}" font-size="14">${road.key}</text>`;
@@ -235,7 +254,7 @@ function referenceMap(canvas: ImageBriefCanvas, facts: ReferenceFacts, displayRo
     const [x, y] = px(place.anchor);
     return `<g><circle cx="${x}" cy="${y}" r="17" fill="${place.key === "D" ? "#d4442e" : "#ffffff"}" stroke="#333"/><text x="${x}" y="${y + 5}" text-anchor="middle" font-size="14" fill="${place.key === "D" ? "#fff" : "#222"}">${escapeXml(place.key)}</text></g>`;
   }).join("");
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="${canvas.width}" height="${canvas.height}" viewBox="0 0 ${canvas.width} ${canvas.height}"><rect width="100%" height="100%" fill="white"/><defs><clipPath id="map"><rect x="25" y="40" width="${canvas.width - 50}" height="${canvas.height - 80}"/></clipPath></defs><g font-family="sans-serif" fill="#30343b"><text x="28" y="25" font-size="16">${displayRoads ? "Code-built road blueprint" : "Source geographic reference"} · N ↑ · no route supplied</text><g clip-path="url(#map)">${paths}${markers}</g><text x="28" y="${canvas.height - 15}" font-size="13">© OpenStreetMap contributors</text></g></svg>`;
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${canvas.width}" height="${canvas.height}" viewBox="0 0 ${canvas.width} ${canvas.height}"><rect width="100%" height="100%" fill="${style === "editorial" && displayRoads ? EDITORIAL_DESIGN.tokens.ground : "white"}"/><defs><clipPath id="map"><rect x="25" y="40" width="${canvas.width - 50}" height="${canvas.height - 80}"/></clipPath></defs><g font-family="sans-serif" fill="#30343b"><text x="28" y="25" font-size="16">${displayRoads ? "Code-built road blueprint" : "Source geographic reference"} · N ↑ · no route supplied</text><g clip-path="url(#map)">${paths}${markers}</g><text x="28" y="${canvas.height - 15}" font-size="13">© OpenStreetMap contributors</text></g></svg>`;
 }
 
 type ImageBriefCanvas = { width: number; height: number };

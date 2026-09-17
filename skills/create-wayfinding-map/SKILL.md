@@ -1,6 +1,6 @@
 ---
 name: create-wayfinding-map
-description: Create and refine wayfinding maps with cairn using editable SVG diagrams or grounded host-generated images in schematic, neighborhood, and pictorial styles. Use for address-based yakdo, venue directions, style comparisons, or revisions to an existing map.
+description: Create and refine wayfinding maps with cairn using editable SVG diagrams, recorded visual design criteria and optional grounded host-generated images. Use for address-based yakdo, venue directions, style comparisons, or revisions to an existing map.
 ---
 
 # Create Wayfinding Map
@@ -11,6 +11,12 @@ Treat the `DiagramDocument` as the geographic source across edit turns. Generate
 pixels never become new evidence for street connectivity or place positions.
 
 ## Choose the output path
+
+Before changing visual direction, record the intended output size, reference
+observations, explicit user preferences and untested design choices using the
+design-brief section of [references/image-workflow.md](references/image-workflow.md).
+Carry accepted choices across revisions. Render and compare against the previous
+artifact; successful generation and geometry checks do not establish visual quality.
 
 - For image styling, pictogram illustration, or comparisons of visual styles,
   use `prepare_image_brief` after resolving the document. Read

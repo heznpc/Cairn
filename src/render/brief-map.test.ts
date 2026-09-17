@@ -4,8 +4,36 @@ import { prepareImageBrief } from "../image-brief.js";
 import { yeoksamMap } from "../../test/fixtures/yeoksam-map.js";
 import { IMAGE_STYLES } from "../image-styles.js";
 import { overlapArea } from "./text.js";
+import { clipSegment } from "./road-geometry.js";
+import { EDITORIAL_DESIGN, editorialFrame } from "../design-contract.js";
 
 describe("editable pictorial map", () => {
+  it("keeps editorial labels inside the map and off street bands while preserving source coordinates", () => {
+    const document = createDiagramDocument(yeoksamMap);
+    const brief = prepareImageBrief(document, "editorial");
+    expect(brief.designContract?.status).toBe("prototype-unvalidated");
+    expect(brief.facts.destination).toMatchObject({ lat: yeoksamMap.center.lat, lon: yeoksamMap.center.lon });
+    expect(brief.facts.landmarks.map((p) => p.sourceId)).toHaveLength(4);
+    const frame = editorialFrame(brief.canvas);
+    for (const match of brief.mapSvg.matchAll(/data-label-box="([^"]+)"/g)) {
+      const [x, y, width, height] = match[1].split(" ").map(Number);
+      expect(x).toBeGreaterThanOrEqual(frame.x);
+      expect(y).toBeGreaterThanOrEqual(frame.y);
+      expect(x + width).toBeLessThanOrEqual(frame.x + frame.width);
+      expect(y + height).toBeLessThanOrEqual(frame.y + frame.height);
+      for (const road of brief.facts.displayRoads) {
+        const half = EDITORIAL_DESIGN.tokens.roads[road.class] / 2;
+        road.points.slice(1).forEach((b, i) => {
+          const a = road.points[i];
+          expect(clipSegment(a.x * brief.canvas.width, a.y * brief.canvas.height,
+            b.x * brief.canvas.width, b.y * brief.canvas.height,
+            x - half, y - half, x + width + half, y + height + half)).toBeNull();
+        });
+      }
+    }
+    expect(brief.mapSvg).not.toMatch(/<image\b|marker-end/);
+    expect(brief.mapSvg).toContain('>강남파이낸스센터</tspan>');
+  });
   it.each(IMAGE_STYLES)("keeps Yeoksam place labels apart and blueprint paths intact in %s", (style) => {
     const { mapSvg, referenceSvg } = prepareImageBrief(createDiagramDocument(yeoksamMap), style);
     const boxes = [...mapSvg.matchAll(/data-label-box="([^"]+)"/g)].map((match) => {

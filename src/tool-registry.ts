@@ -43,14 +43,14 @@ export const tools = [
   {
     name: "prepare_image_brief",
     description: "Render a deterministic pictogram map and road blueprint (PNG/SVG), with source facts and an optional host-image prompt. " +
-      "Use an existing DiagramDocument from generate_map or render_document. Styles: schematic (compact yakdo), " +
-      "neighborhood (geographic context), pictorial (landmark icons). Uses the document's theme. " +
+      "Use an existing DiagramDocument from generate_map or render_document. Styles: editorial (destination-first pictogram insert), schematic (compact yakdo), " +
+      "neighborhood (geographic context), pictorial (landmark icons, default). Uses the document's theme. " +
       "Runs offline; does not call an image model. mapSvg and the second PNG are code-rendered; optional generative restyles need visual review.",
     inputSchema: {
       type: "object",
       properties: {
         document: diagramDocumentJsonSchema,
-        style: { type: "string", enum: IMAGE_STYLES, description: "Image composition style (default schematic), independent of SVG template and color theme." },
+        style: { type: "string", enum: IMAGE_STYLES, description: "Image composition style (default pictorial), independent of SVG template and color theme." },
       },
       required: ["document"],
       additionalProperties: false,

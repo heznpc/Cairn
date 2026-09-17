@@ -9,9 +9,9 @@ export function pictogramKind(category: LandmarkCategory, tags: Record<string, s
 }
 
 /** Self-contained editable SVG shapes, centered in an approximately 48 px box. */
-export function pictogram(kind: PictogramKind, theme: RenderTheme, destination = false): string {
+export function pictogram(kind: PictogramKind, theme: RenderTheme, destination = false, ink = "#34434d"): string {
   const mono = theme === "mono";
-  const ink = "#34434d", white = "#ffffff";
+  const white = "#ffffff";
   const accent = mono ? ink : theme === "civic" ? "#286f98" : "#e65038";
   const main = destination ? accent : ink;
   const g = (body: string) => `<g data-pictogram="${kind}" stroke-linecap="round" stroke-linejoin="round">${body}</g>`;
@@ -53,4 +53,16 @@ export function pictogram(kind: PictogramKind, theme: RenderTheme, destination =
     default:
       return g(`<circle r="22" fill="${main}"/><g transform="scale(1.5)">${landmarkIcon(kind, 0, 0, white)}</g>`);
   }
+}
+
+/** One family of flat symbols. Their center remains the geographic anchor. */
+export function editorialPictogram(kind: PictogramKind, color: string, ink: string): string {
+  const shapes: Partial<Record<PictogramKind, string>> = {
+    building: `<path d="M-15,19 V-20 H9 V19 Z M9,-7 H19 V19 H9 Z" fill="${color}"/><path d="M-9,-13 H-4 M1,-13 H5 M-9,-5 H-4 M1,-5 H5 M-9,3 H-4 M1,3 H5 M-9,11 H-4 M1,11 H5" stroke="white" stroke-width="3"/>`,
+    hospital: `<path d="M-6,-18 H6 V-6 H18 V6 H6 V18 H-6 V6 H-18 V-6 H-6 Z" fill="${color}"/>`,
+    cinema: `<rect x="-19" y="-12" width="38" height="29" rx="2" fill="${color}"/><path d="M-19,-15 L17,-22 L19,-14 L-17,-7 Z" fill="${color}"/><path d="M-10,-17 L-6,-10 M1,-19 L5,-12 M11,-21 L15,-14" stroke="white" stroke-width="3"/><path d="M-5,-3 L7,3 L-5,10 Z" fill="white"/>`,
+    park: `<path d="M-9,6 V20 M12,8 V20" stroke="${color}" stroke-width="3"/><path d="M-9,-21 C-24,-15 -25,7 -9,9 C7,7 6,-15 -9,-21 Z M12,-13 L2,9 H23 Z" fill="${color}"/>`,
+    station_exit: `<circle r="19" fill="white" stroke="${ink}" stroke-width="2"/><path d="M-4,-10 H-11 V10 H-4 M-4,0 H11 M6,-5 L11,0 L6,5" fill="none" stroke="${ink}" stroke-width="2.5"/>`,
+  };
+  return `<g data-pictogram="${kind}" stroke-linejoin="round">${shapes[kind] ?? `<g transform="scale(.8)">${pictogram(kind, "mono", false, ink)}</g>`}</g>`;
 }

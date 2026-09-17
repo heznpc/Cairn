@@ -44,7 +44,7 @@ OPTIONS
   -o, --output <file>     Write SVG, PNG, or PDF by extension (default: SVG stdout)
       --save-document <file>
                           Save editable DiagramDocument JSON when generating
-      --style <name>     Host image composition: schematic, neighborhood, pictorial
+      --style <name>     Map style: pictorial (default), editorial, schematic, neighborhood
       --reference <file> Write code-built road blueprint (.svg, .png or .pdf)
       --map <file>       Write finished deterministic map (.svg, .png or .pdf)
   -l, --label <text>      Label for the destination (default: localized "Here")
@@ -130,7 +130,7 @@ export function parseCliRequest(argv: string[]): CliRequest {
     const unsupported = Object.keys(opts).filter((key) => !["style", "output", "reference", "map"].includes(key));
     if (unsupported.length) throw new Error(`Unsupported brief options: ${unsupported.join(", ")}; edit the document's theme/canvas first`);
     return { kind: "image-brief", input,
-      style: parseEnum("--style", opts.style, isImageStyle, IMAGE_STYLES) ?? "schematic",
+      style: parseEnum("--style", opts.style, isImageStyle, IMAGE_STYLES) ?? "pictorial",
       output: opts.output, reference: opts.reference, ...(opts.map ? { map: opts.map } : {}) };
   }
   if (opts.style !== undefined || opts.reference !== undefined || opts.map !== undefined) {
