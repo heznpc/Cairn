@@ -17,6 +17,7 @@ export const IMAGE_REVIEW_CHECKS = [
   "Match every rendered place name and exit number to the literal source labels; repair spelling without moving geometry.",
   "Check destination, landmarks and intersections against the geographic reference. Each place icon is its position marker: remove duplicate anchor dots and short decorative leader stubs. Connect a distant label directly to the icon edge only when needed.",
   "Keep road-side relationships and shared-node connections; never turn a line crossing into a junction or invent an entrance.",
+  "Do not restore omitted intra-street vehicle connectors as diagonal road cuts, median openings or extra branches. In schematic and pictorial styles, draw paired carriageways of the same street as one continuous solid band.",
   "Do not add a route, travel time, distance claim or building footprint unsupported by the source. No route is supplied by this brief.",
   "Check destination hierarchy, readable final-size type, label collisions, canvas clipping, attribution, and the selected style's information density.",
 ] as const;
@@ -37,7 +38,9 @@ export function prepareImageBrief(input: DiagramDocument, style: ImageStyle = "s
   const landmarks = [...map.landmarks].sort((a, b) =>
     Number(b.id === startId) - Number(a.id === startId) || b.importance - a.importance || a.id.localeCompare(b.id),
   ).slice(0, profile.landmarkLimit);
+  const internalConnectors = intraStreetConnectors(map.roads);
   const roads = selectRoads(map.roads.filter((road) => {
+    if (internalConnectors.has(road.id)) return false;
     const points = road.nodes?.length ? road.nodes : road.points;
     return points.some((p, i) => i > 0 && clipSegment(
       points[i - 1].lon, points[i - 1].lat, p.lon, p.lat,
@@ -87,6 +90,7 @@ export function prepareImageBrief(input: DiagramDocument, style: ImageStyle = "s
   ];
   if (roads.length === 0) warnings.push("No roads available: produce a landmark locator only; do not invent a street skeleton.");
   if (roads.some((road) => !road.nodes?.length)) warnings.push("Some roads lack node identities: their crossing connectivity is unknown.");
+  if (internalConnectors.size) warnings.push(`${internalConnectors.size} intra-street vehicle connectors omitted from the illustration; this does not establish pedestrian access.`);
   if (map.landmarks.length > landmarks.length) warnings.push(`${map.landmarks.length - landmarks.length} lower-priority landmarks omitted for this style.`);
   if (map.roads.length > roads.length) warnings.push("Some roads omitted for this style; blank space is not evidence of an empty block.");
   if ([destination, ...places].some(({ anchor: p }) => p.x < 0 || p.x > 1 || p.y < 0 || p.y > 1)) {
@@ -116,6 +120,26 @@ export function prepareImageBrief(input: DiagramDocument, style: ImageStyle = "s
 export type ImageBrief = ReturnType<typeof prepareImageBrief>;
 
 function round(value: number): number { return Number(value.toFixed(5)); }
+
+/** Hide lane-level links only when node identity ties both ends to the same named street. */
+function intraStreetConnectors(roads: Road[]): Set<string> {
+  const streetsAtNode = new Map<string, Road[]>();
+  for (const road of roads) {
+    if (!road.name || road.tags?.highway?.endsWith("_link")) continue;
+    for (const node of road.nodes ?? []) {
+      const streets = streetsAtNode.get(node.id) ?? [];
+      streets.push(road);
+      streetsAtNode.set(node.id, streets);
+    }
+  }
+  return new Set(roads.filter((road) => {
+    if (!road.tags?.highway?.endsWith("_link") || !road.nodes || road.nodes.length < 2) return false;
+    const start = streetsAtNode.get(road.nodes[0].id) ?? [];
+    const end = streetsAtNode.get(road.nodes[road.nodes.length - 1].id) ?? [];
+    return start.some((a) => end.some((b) => a.id !== b.id && a.name === b.name &&
+      (!road.name || road.name === a.name)));
+  }).map((road) => road.id));
+}
 
 /** Local geometric side hints, deliberately separate from node connectivity. */
 function roadRelations(roads: Road[], center: { lat: number; lon: number }, places: Array<{

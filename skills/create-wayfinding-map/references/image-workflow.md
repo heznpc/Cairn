@@ -29,6 +29,9 @@ user asks to compare. Colors remain independent: use the document's existing
    D/L/R match the facts, not decorative output labels. The reference ignores
    manual marker offsets and fisheye so a visual adjustment cannot masquerade
    as geographic evidence. Hidden objects and edited labels are respected.
+   Lane-level vehicle connectors whose endpoints share the same named street
+   are omitted using OSM node identity. Links between different streets and
+   links with unknown endpoint identities remain eligible for selection.
 
 ## Generate through the host
 
@@ -61,6 +64,11 @@ Use the place icon itself as the location marker. Check for redundant black
 anchor dots or short leader stubs beside icons; remove them rather than moving
 the icon away from its true position. Adjacent labels need no leader. A distant
 label can connect directly to the icon edge with a thin line and no endpoint dots.
+
+Check roads for diagonal cuts or extra branches caused by lane-level crossover
+details. Do not restore omitted intra-street connectors. In schematic and
+pictorial styles, paired carriageways of one street should form a single solid
+band, with no median slit or turning-lane shapes inside it.
 
 For a spelling-only defect, edit only that label while preserving geometry.
 For a structural/style defect, rebuild from the original geographic reference

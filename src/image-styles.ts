@@ -15,8 +15,8 @@ export const IMAGE_STYLE_PROFILES: Record<ImageStyle, {
     instructions: "Draw a compact schematic yakdo, not a decorated geographic map. " +
       "Remove anonymous buildings and minor streets. Redraw the dominant axes as clean straight " +
       "horizontal/vertical or 45-degree bands rather than tracing the reference. Collapse paired " +
-      "carriageways with the same street name into ONE band; omit medians, lane splits and turning lanes. " +
-      "never impose a crossroad where the source has none. Compress distances and enlarge the " +
+      "carriageways with the same street name into ONE continuous solid band, with no central slit, " +
+      "diagonal cuts, medians, lane splits or turning lanes. Never impose a crossroad where the source has none. Compress distances and enlarge the " +
       "destination while preserving intersection order and which side of each road a place occupies. " +
       "Use two road weights, small circular line pictograms, and a clear destination callout. " +
       "Keep the heading small. No decorative texture, shadows, giant title or empty poster margins.",
@@ -37,6 +37,8 @@ export const IMAGE_STYLE_PROFILES: Record<ImageStyle, {
     landmarkLimit: 6,
     instructions: "Draw a pictogram-led wayfinding map. Use a larger destination symbol and a " +
       "consistent family of small recognizable place icons along a simplified street skeleton. " +
+      "Collapse paired carriageways with the same street name into ONE continuous solid band. " +
+      "Do not draw a central slit, diagonal cuts, medians, lane splits or turning lanes inside it. " +
       "Generic category icons are symbolic, never purported likenesses of real buildings. " +
       "Allow gently compressed distances and enlarged icons, but preserve relative direction, " +
       "road-side placement and intersection order. Keep labels beside their icons wherever possible. " +

@@ -14,7 +14,49 @@ function fixture(): DiagramDocument {
   return doc;
 }
 
+function dividedStreetFixture(): DiagramDocument {
+  const doc = fixture();
+  const a = { id: "a", lat: 37.5, lon: 127 };
+  const b = { id: "b", lat: 37.5001, lon: 127.0001 };
+  doc.map.roads = [
+    { id: "eastbound", name: "테헤란로", class: "primary", tags: { highway: "primary", oneway: "yes" },
+      nodes: [{ id: "west", lat: 37.5, lon: 126.999 }, a], points: [] },
+    { id: "westbound", name: "테헤란로", class: "primary", tags: { highway: "primary", oneway: "yes" },
+      nodes: [b, { id: "east", lat: 37.5001, lon: 127.001 }], points: [] },
+    { id: "crossover", class: "primary", tags: { highway: "primary_link", oneway: "yes" },
+      nodes: [a, b], points: [] },
+  ];
+  for (const road of doc.map.roads) road.points = road.nodes!.map(({ lat, lon }) => ({ lat, lon }));
+  return doc;
+}
+
 describe("host image briefs", () => {
+  it.each(IMAGE_STYLES)("omits intra-street vehicle crossovers from %s facts and reference", (style) => {
+    const doc = dividedStreetFixture();
+    const before = structuredClone(doc);
+    const brief = prepareImageBrief(doc, style);
+    expect(brief.facts.roads.map((road) => road.sourceId).sort()).toEqual(["eastbound", "westbound"]);
+    expect(brief.referenceSvg.match(/<polyline /g)).toHaveLength(2);
+    expect(brief.facts.sharedNodes).toEqual([]);
+    expect(brief.warnings.join(" ")).toContain("1 intra-street vehicle connectors omitted");
+    expect(doc).toEqual(before);
+  });
+
+  it.each(["different street", "missing nodes", "different node ids", "named link", "ordinary street"])(
+    "retains a connector when its endpoints do not establish an intra-street vehicle link: %s", (scenario) => {
+      const doc = dividedStreetFixture();
+      const link = doc.map.roads[2];
+      if (scenario === "different street") doc.map.roads[1].name = "논현로";
+      if (scenario === "missing nodes") delete link.nodes;
+      if (scenario === "different node ids") link.nodes = link.nodes!.map((node) => ({ ...node, id: `${node.id}-other` }));
+      if (scenario === "named link") link.name = "Separate access road";
+      if (scenario === "ordinary street") link.tags!.highway = "residential";
+      const brief = prepareImageBrief(doc, "neighborhood");
+      expect(brief.facts.roads.some((road) => road.sourceId === "crossover")).toBe(true);
+      expect(brief.warnings.join(" ")).not.toContain("intra-street vehicle connectors omitted");
+    },
+  );
+
   it("changes information density by style without changing source anchors or document", () => {
     const doc = fixture();
     const before = structuredClone(doc);
