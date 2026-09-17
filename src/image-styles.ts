@@ -13,10 +13,12 @@ export const IMAGE_STYLE_PROFILES: Record<ImageStyle, {
     roadGroups: 4,
     landmarkLimit: 4,
     instructions: "Draw a compact schematic yakdo, not a decorated geographic map. " +
-      "Remove anonymous buildings and minor streets. Redraw the dominant axes as clean straight " +
-      "horizontal/vertical or 45-degree bands rather than tracing the reference. Collapse paired " +
-      "carriageways with the same street name into ONE continuous solid band, with no central slit, " +
-      "diagonal cuts, medians, lane splits or turning lanes. Never impose a crossroad where the source has none. Compress distances and enlarge the " +
+      "Remove anonymous buildings and minor streets. Preserve the supplied display-road paths: " +
+      "only source-aligned approaches stay straight; keep actual bends, curves and staggered junctions. " +
+      "Do not snap roads to horizontal, vertical or 45-degree axes. Carriageways already paired in " +
+      "displayRoads form ONE continuous solid band, with no central slit, diagonal cuts, medians, " +
+      "lane splits or turning lanes. Never merge roads merely because their names match. " +
+      "Never impose a crossroad where the source has none. Enlarge the " +
       "destination while preserving intersection order and which side of each road a place occupies. " +
       "Use two road weights, small circular line pictograms, and a clear destination callout. " +
       "Keep the heading small. No decorative texture, shadows, giant title or empty poster margins.",
@@ -37,10 +39,11 @@ export const IMAGE_STYLE_PROFILES: Record<ImageStyle, {
     landmarkLimit: 6,
     instructions: "Draw a pictogram-led wayfinding map. Use a larger destination symbol and a " +
       "consistent family of small recognizable place icons along a simplified street skeleton. " +
-      "Collapse paired carriageways with the same street name into ONE continuous solid band. " +
+      "Use the supplied display-road paths; only carriageways already paired there form ONE continuous solid band. " +
+      "Keep actual bends and staggered junctions, and never merge roads merely because their names match. " +
       "Do not draw a central slit, diagonal cuts, medians, lane splits or turning lanes inside it. " +
       "Generic category icons are symbolic, never purported likenesses of real buildings. " +
-      "Allow gently compressed distances and enlarged icons, but preserve relative direction, " +
+      "Enlarge icons while preserving the supplied road paths, relative direction, " +
       "road-side placement and intersection order. Keep labels beside their icons wherever possible. " +
       "Avoid a dense city map, decorative skyline, and unrelated illustrations.",
   },

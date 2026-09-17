@@ -249,7 +249,7 @@ checks. The CLI does not call a model.
 
 | Image style | Information design |
 |---|---|
-| `schematic` | Few roads and landmarks, compressed distances, simple road bands |
+| `schematic` | Few roads and landmarks, compact line icons, simple road bands |
 | `neighborhood` | More local streets, geographic angles and neighborhood context |
 | `pictorial` | Recognizable category icons with a simplified road skeleton |
 
@@ -258,6 +258,19 @@ Image styles differ from SVG `template`. They use the document's `theme`
 visibility or theme through document patches before rebuilding the brief.
 The brief preserves original geographic anchors even if decorative marker
 offsets are set. Road and landmark budgets vary by style; omissions are reported.
+
+The exported SVG contains editable road paths, pictogram shapes and live text,
+not an embedded PNG. Named groups separate roads, street labels and places;
+each place's icon and text have IDs derived from its source identity. Pictorial
+style uses filled category symbols (including cinema reels from OSM tags),
+while schematic style retains compact line icons. Category symbols do not
+claim to depict a building's actual architecture.
+
+Document patches support names, visibility, theme and canvas changes before
+regeneration. The older `render_document` SVG renderer also supports manual
+marker positions; the brief's geographic map keeps source anchors. Cairn has
+no graphical editor or SVG-to-document import: edits made directly to an
+exported SVG must be kept in that SVG, and are not read back during regeneration.
 
 The deterministic map shares the blueprint's road paths. A generative restyle
 does not have that guarantee. Coordinates alone do not establish building containment, usable

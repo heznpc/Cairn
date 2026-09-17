@@ -7,6 +7,7 @@ import { IMAGE_STYLE_PROFILES, isImageStyle, type ImageStyle } from "./image-sty
 import { roadContinuities } from "./road-continuity.js";
 import { buildDisplayRoads, type DisplayRoad } from "./render/display-roads.js";
 import { displayRoadPaths, renderBriefMap } from "./render/brief-map.js";
+import { pictogramKind } from "./render/pictograms.js";
 import type { DiagramDocument, Road, RenderTheme } from "./types.js";
 
 const THEME_DIRECTIONS: Record<RenderTheme, string> = {
@@ -22,7 +23,7 @@ export const IMAGE_REVIEW_CHECKS = [
   "Keep road-side relationships and shared-node connections; never turn a line crossing into a junction or invent an entrance.",
   "Compare each intersection's approach axes with roadContinuities and the source reference. Near-straight continuations must not become offset arms, kinks or four independently rotated stubs. Preserve actual bends and separate junction nodes; never straighten every intersection by default.",
   "Keep POI labels and their backgrounds off road bands and junctions. Move or wrap text instead of erasing road sections with a white label box; road continuity must remain visible.",
-  "Do not restore omitted intra-street vehicle connectors as diagonal road cuts, median openings or extra branches. In schematic and pictorial styles, draw paired carriageways of the same street as one continuous solid band.",
+  "Do not restore omitted intra-street vehicle connectors as diagonal road cuts, median openings or extra branches. Only carriageways marked paired-carriageways in displayRoads share one continuous solid band; keep other source roads distinct.",
   "Do not add a route, travel time, distance claim or building footprint unsupported by the source. No route is supplied by this brief.",
   "Check destination hierarchy, readable final-size type, label collisions, canvas clipping, attribution, and the selected style's information density.",
 ] as const;
@@ -66,6 +67,7 @@ export function prepareImageBrief(input: DiagramDocument, style: ImageStyle = "s
     anchor: anchor(map.center.lat, map.center.lon) };
   const places = landmarks.map((item, index) => ({
     key: `L${index + 1}`, sourceId: item.id, label: item.name, category: item.category,
+    pictogram: pictogramKind(item.category, item.tags),
     lat: item.lat, lon: item.lon, anchor: anchor(item.lat, item.lon),
   }));
   const streets = roads.map((road, index) => ({

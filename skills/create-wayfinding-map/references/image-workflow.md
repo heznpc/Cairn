@@ -4,7 +4,7 @@
 
 | Style | Use when | Keep / simplify |
 |---|---|---|
-| `schematic` | Business cards, direction inserts, Korean 약도 | A few essential streets and landmarks; compress distance; preserve road-side relationships and intersection order |
+| `schematic` | Business cards, direction inserts, Korean 약도 | A few essential streets and landmarks; compact line icons; preserve display paths, road-side relationships and intersection order |
 | `neighborhood` | Visitors need surrounding streets and geographic context | More local streets and POIs; keep orientation, angles and relative distances |
 | `pictorial` | Venue or event visitors benefit from recognizable symbols | A readable street skeleton with a consistent family of larger landmark pictograms |
 
@@ -85,8 +85,9 @@ label can connect directly to the icon edge with a thin line and no endpoint dot
 
 Check roads for diagonal cuts or extra branches caused by lane-level crossover
 details. Do not restore omitted intra-street connectors. In schematic and
-pictorial styles, paired carriageways of one street should form a single solid
-band, with no median slit or turning-lane shapes inside it.
+pictorial styles, only pairs explicitly marked in `displayRoads` share a single
+solid band, with no median slit or turning-lane shapes inside it. A shared street
+name is not sufficient to merge roads.
 
 Compare the junction's actual approach axes with `roadContinuities` and the
 original reference. An aligned source street must not become independently

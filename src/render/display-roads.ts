@@ -35,10 +35,18 @@ export function buildDisplayRoads(
 ): { roads: DisplayRoad[]; nodes: Array<{ sourceId: string; anchor: NormalizedPosition }> } {
   const normalize = (p: Point) => ({ x: p.x / canvas.width, y: p.y / canvas.height });
   const chains = joinWays(roads, project);
+  const nodeRoads = new Map<string, Set<number>>();
+  roads.forEach((road, i) => road.nodes?.forEach((node) => {
+    const members = nodeRoads.get(node.id) ?? new Set<number>();
+    members.add(i);
+    nodeRoads.set(node.id, members);
+  }));
+  const junctions = new Set([...nodeRoads].filter(([, members]) => members.size > 1).map(([id]) => id));
   if (simplify) {
     for (const chain of chains) {
       const visible = visiblePoints(chain.points, canvas);
-      chain.axis = straightAxis(visible, 4 * pixelsPerMeter);
+      chain.axis = hasJunctionBend(chain.vertices, junctions, pixelsPerMeter, canvas)
+        ? null : straightAxis(visible, 4 * pixelsPerMeter);
       if (chain.axis) {
         chain.points = [chain.axis.a, chain.axis.b];
         chain.geometry = "straight";
@@ -172,6 +180,31 @@ function visiblePoints(points: Point[], canvas: { width: number; height: number 
 function axisBetween(a: Point, b: Point): Axis | null {
   const length = distance(a, b);
   return length > 0.01 ? { a, b, length, dx: (b.x - a.x) / length, dy: (b.y - a.y) / length } : null;
+}
+
+/** Even a small bend at a junction matters; overall line-fit tolerance must
+ * not erase it. Measure up to 30 m on each arm, matching continuity evidence. */
+function hasJunctionBend(points: Vertex[], junctions: Set<string>, ppm: number, canvas: { width: number; height: number }): boolean {
+  const sample = (index: number, step: number): Point => {
+    let remaining = 30 * ppm, previous: Point = points[index];
+    for (let i = index + step; i >= 0 && i < points.length; i += step) {
+      const next = points[i], length = distance(previous, next);
+      if (length >= remaining && length > 0) {
+        const t = remaining / length;
+        return { x: previous.x + (next.x - previous.x) * t, y: previous.y + (next.y - previous.y) * t };
+      }
+      remaining -= length;
+      previous = next;
+    }
+    return previous;
+  };
+  return points.some((point, i) => {
+    if (!junctions.has(point.id) || i === 0 || i === points.length - 1 ||
+      point.x < 0 || point.x > canvas.width || point.y < 0 || point.y > canvas.height) return false;
+    const a = subtract(sample(i, -1), point), b = subtract(sample(i, 1), point);
+    const lengths = Math.hypot(a.x, a.y) * Math.hypot(b.x, b.y);
+    return lengths > 0 && dot(a, b) / lengths > -Math.cos(8 * Math.PI / 180);
+  });
 }
 
 function straightAxis(points: Point[], tolerance: number): Axis | null {

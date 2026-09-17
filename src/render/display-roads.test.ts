@@ -62,6 +62,15 @@ describe("rendered road geometry", () => {
       .not.toEqual(result.nodes.find((n) => n.sourceId === "j2")!.anchor);
   });
 
+  it("keeps an actual junction bend even when its displacement fits the straightening tolerance", () => {
+    const bent = road("bent", [["w", 490, 300], ["j", 500, 302], ["e", 510, 300]]);
+    const cross = road("cross", [["n", 500, 100], ["j", 500, 302], ["s", 500, 700]], {}, "Cross");
+    const result = buildDisplayRoads([bent, cross], project, canvas, 1);
+    const main = result.roads.find((r) => r.label === "Main")!;
+    expect(main.geometry).toBe("source");
+    expect(main.points).toEqual(bent.nodes!.map((p) => ({ x: p.lon / canvas.width, y: p.lat / canvas.height })));
+  });
+
   it.each(["two-way", "same direction", "different layer", "little overlap", "curved", "missing nodes", "crossing axes"])(
     "does not collapse unrelated parallel roads: %s", (scenario) => {
       const a = road("a", [["a1", 100, 300], ["a2", 1100, 300]], { oneway: "yes" });
