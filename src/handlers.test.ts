@@ -130,9 +130,9 @@ describe("prepare_image_brief", () => {
     expect(result.isError).toBeUndefined();
     const validate = validatorFor("prepare_image_brief");
     expect(validate(result.structuredContent), JSON.stringify(validate.errors)).toBe(true);
-    const png = result.content.find((c) => c.type === "image");
-    expect(png?.type).toBe("image");
-    if (png?.type === "image") expect(Buffer.from(png.data, "base64").subarray(1, 4).toString()).toBe("PNG");
+    const pngs = result.content.filter((c) => c.type === "image");
+    expect(pngs).toHaveLength(2);
+    for (const png of pngs) expect(Buffer.from(png.data, "base64").subarray(1, 4).toString()).toBe("PNG");
     expect(generateMap).not.toHaveBeenCalled();
     expect(findRoads).not.toHaveBeenCalled();
   });

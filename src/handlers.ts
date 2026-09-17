@@ -76,10 +76,13 @@ export async function dispatchTool(
       const input = PrepareImageBriefArgs.parse(args);
       const brief = prepareImageBrief(input.document, input.style);
       const png = encodeMapArtifact(brief.referenceSvg, brief.canvas, "png") as Buffer;
+      const mapPng = encodeMapArtifact(brief.mapSvg, brief.canvas, "png") as Buffer;
       return {
         content: [
           { type: "text", text: brief.prompt },
           { type: "image", mimeType: "image/png", data: png.toString("base64") },
+          { type: "text", text: "Finished code-rendered map. This uses the blueprint road paths without image-model redrawing." },
+          { type: "image", mimeType: "image/png", data: mapPng.toString("base64") },
         ],
         structuredContent: brief,
       };

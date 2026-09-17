@@ -57,16 +57,18 @@ async function main() {
   }
 
   if (request.kind === "image-brief") {
-    const paths = [request.input, request.output, request.reference].filter((p): p is string => Boolean(p)).map((p) => resolve(p));
-    if (new Set(paths).size !== paths.length) throw new Error("Document, brief and reference must use different paths");
+    const paths = [request.input, request.output, request.reference, request.map].filter((p): p is string => Boolean(p)).map((p) => resolve(p));
+    if (new Set(paths).size !== paths.length) throw new Error("Document, brief, reference and map must use different paths");
     if (request.reference) artifactFormatFromPath(request.reference);
+    if (request.map) artifactFormatFromPath(request.map);
     const document = parseDiagramDocument(JSON.parse(readFileSync(request.input, "utf8")));
     const brief = prepareImageBrief(document, request.style);
     if (request.reference) writeArtifact(request.reference, brief.referenceSvg, brief.canvas);
+    if (request.map) writeArtifact(request.map, brief.mapSvg, brief.canvas);
     const json = `${JSON.stringify(brief, null, 2)}\n`;
     if (request.output) writeFileSync(request.output, json, "utf8");
     else process.stdout.write(json);
-    console.error(`✓ ${brief.style} image brief prepared; host image generation and visual review still required`);
+    console.error(`✓ ${brief.style} road blueprint and deterministic map prepared; generative restyles require separate visual review`);
     return;
   }
 

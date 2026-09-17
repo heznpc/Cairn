@@ -42,10 +42,10 @@ const localAnnotations = {
 export const tools = [
   {
     name: "prepare_image_brief",
-    description: "Prepare a grounded prompt, geographic reference PNG/SVG and review checks for the host's image generator. " +
+    description: "Render a deterministic pictogram map and road blueprint (PNG/SVG), with source facts and an optional host-image prompt. " +
       "Use an existing DiagramDocument from generate_map or render_document. Styles: schematic (compact yakdo), " +
       "neighborhood (geographic context), pictorial (landmark icons). Uses the document's theme. " +
-      "Runs offline; does not call an image model. Host must generate and inspect the actual image.",
+      "Runs offline; does not call an image model. mapSvg and the second PNG are code-rendered; optional generative restyles need visual review.",
     inputSchema: {
       type: "object",
       properties: {

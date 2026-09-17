@@ -24,9 +24,10 @@ user asks to compare. Colors remain independent: use the document's existing
    `render_document`. Shorten a long institution name only when its identity
    remains clear. Do not rely on an image model to abbreviate it.
 3. Call `prepare_image_brief` with that document and the chosen `style`. It
-   returns `prompt`, a reference PNG content block, `referenceSvg`, source
-   `facts`, `checks`, and missing-evidence `warnings`. Reference marker keys
-   D/L/R match the facts, not decorative output labels. The reference ignores
+   returns `prompt`, two PNG content blocks (road blueprint, then code-rendered
+   map), `referenceSvg`, `sourceReferenceSvg`, `mapSvg`, source `facts`, `checks`,
+   and missing-evidence `warnings`. Blueprint marker keys D/L/S match the facts;
+   R keys identify source roads. These are not decorative output labels. The reference ignores
    manual marker offsets and fisheye so a visual adjustment cannot masquerade
    as geographic evidence. Hidden objects and edited labels are respected.
    Lane-level vehicle connectors whose endpoints share the same named street
@@ -35,8 +36,23 @@ user asks to compare. Colors remain independent: use the document's existing
    `roadContinuities` measures the approach directions at shared source nodes.
    It distinguishes near-straight continuations from bends without moving or
    merging nodes. A missing continuity record does not mean a straight road.
+   `displayRoads` contains the actual rendered paths. Connected ways join only
+   at shared source nodes. Schematic/pictorial styles collapse mutually
+   unambiguous, straight, overlapping opposite one-way carriageways into one
+   centerline; bends, staggered junctions and unrelated parallel roads remain.
+   `displayNodes` records the resulting source-node positions. Raw source roads
+   and node identities remain available in `facts` and `sourceReferenceSvg`.
 
-## Generate through the host
+## Deliver the code-rendered map
+
+Inspect `mapSvg` or the second PNG. It uses exactly the blueprint's road paths,
+with geographic pictograms and literal labels rendered in code. Use this output
+when continuous street geometry must survive into the delivered SVG/PNG/PDF.
+Check label collisions and icon placement before delivery. This render is
+reproducible; it does not call an image model. It does not verify pedestrian
+access or entrance usability.
+
+## Optionally restyle through the host
 
 Use the host's available image-generation/editing tool and its normal attachment
 instructions. Pass the returned prompt and the reference image together; never
@@ -50,11 +66,10 @@ photo may supplement it, but a previous generated image is not geographic
 evidence. Do not invent extra roads or buildings just to fill space. Do not
 impose a fixed two-road cross on unrelated places.
 
-If the host has no image tool, return the brief/reference and explain that
-image rendering requires a capable host. The existing SVG path is a format
-alternative, not proof of generating the requested image. The server calls
-no model; host tool availability and costs are separate from cairn's
-API-key-free data and SVG path.
+If the host has no image tool, the code-rendered map remains available. Do not
+describe it as an image-model result or silently substitute it for an explicitly
+requested generated illustration. Host tool availability and costs are separate
+from cairn's API-key-free data and SVG/PNG/PDF path.
 
 ## Inspect and revise
 
@@ -101,10 +116,11 @@ brief so it is not confounded by a different destination or label set.
 
 ```bash
 cairn "서울 강남구 테헤란로 152" --label "강남파이낸스센터" --save-document office.json -o office.svg
-cairn brief office.json --style schematic -o brief.json --reference reference.png
+cairn brief office.json --style schematic -o brief.json --reference reference.png --map map.png
 ```
 
-Read `prompt` from the JSON and attach `reference.png` to the host image tool.
-`brief` runs offline and defaults to JSON stdout. It does not itself create the
-styled image. Change document theme/canvas before preparing the next brief;
-SVG `--template` is not an image style.
+`map.png` is the deterministic map; `--map` also supports SVG and PDF. For an
+optional restyle, read `prompt` from the JSON and attach `reference.png` to the
+host image tool. `brief` runs offline and defaults to JSON stdout. Change
+document theme/canvas before preparing the next brief; SVG `--template` is not
+an image style.

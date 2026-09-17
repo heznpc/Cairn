@@ -36,7 +36,7 @@ describe("host image briefs", () => {
     const before = structuredClone(doc);
     const brief = prepareImageBrief(doc, style);
     expect(brief.facts.roads.map((road) => road.sourceId).sort()).toEqual(["eastbound", "westbound"]);
-    expect(brief.referenceSvg.match(/<polyline /g)).toHaveLength(2);
+    expect(brief.sourceReferenceSvg.match(/<polyline /g)).toHaveLength(2);
     expect(brief.facts.sharedNodes).toEqual([]);
     expect(brief.warnings.join(" ")).toContain("1 intra-street vehicle connectors omitted");
     expect(doc).toEqual(before);

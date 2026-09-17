@@ -15,8 +15,9 @@ pixels never become new evidence for street connectivity or place positions.
 - For image styling, pictogram illustration, or comparisons of visual styles,
   use `prepare_image_brief` after resolving the document. Read
   [references/image-workflow.md](references/image-workflow.md) for style choice,
-  host image-tool handoff and correction. A successful brief call alone is not
-  a finished image.
+  deterministic map output, optional host image-tool handoff and correction.
+  `mapSvg` and the second PNG are code-rendered maps; they are not evidence of
+  a successful image-model run.
 - For editable vectors, deterministic output or a host without an image tool,
   follow the SVG workflow below. Preserve an explicit format/style request;
   do not silently substitute SVG for a requested generated image.

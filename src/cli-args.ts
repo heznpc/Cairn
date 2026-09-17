@@ -37,7 +37,7 @@ USAGE
   cairn <address> [options]
   cairn generate <address> [options]
   cairn render <document.json> [options]
-  cairn brief <document.json> --style <name> [-o brief.json] [--reference reference.png]
+  cairn brief <document.json> --style <name> [-o brief.json] [--reference reference.png] [--map map.png]
   cairn install-skill <skills-directory>
 
 OPTIONS
@@ -45,7 +45,8 @@ OPTIONS
       --save-document <file>
                           Save editable DiagramDocument JSON when generating
       --style <name>     Host image composition: schematic, neighborhood, pictorial
-      --reference <file> Write geographic reference for brief (.svg, .png or .pdf)
+      --reference <file> Write code-built road blueprint (.svg, .png or .pdf)
+      --map <file>       Write finished deterministic map (.svg, .png or .pdf)
   -l, --label <text>      Label for the destination (default: localized "Here")
       --candidate <id>    Select a location ID listed by an ambiguous-address error
       --language <tag>    Language for generated labels, e.g. ko, ja, de
@@ -83,7 +84,7 @@ EXAMPLES
   cairn "서울 강남구 테헤란로 152" -o office.svg
   cairn "서울 강남구 테헤란로 152" -o office.svg --save-document office.json
   cairn render office.json -o office-revised.svg
-  cairn brief office.json --style schematic -o brief.json --reference reference.png
+  cairn brief office.json --style schematic -o brief.json --reference reference.png --map map.png
   cairn install-skill ~/.codex/skills
   cairn "1600 Amphitheatre Pkwy, Mountain View" --label "Office"
   cairn "Shibuya Crossing, Tokyo" -n 4 -r 300
@@ -97,7 +98,7 @@ export type CliRequest =
   | { kind: "missing-address" }
   | { kind: "missing-document" }
   | { kind: "missing-skill-target" }
-  | { kind: "image-brief"; input: string; style: ImageStyle; output?: string; reference?: string }
+  | { kind: "image-brief"; input: string; style: ImageStyle; output?: string; reference?: string; map?: string }
   | {
       kind: "install-skill";
       target: string;
@@ -126,14 +127,14 @@ export function parseCliRequest(argv: string[]): CliRequest {
     const input = positional[1];
     if (!input) return { kind: "missing-document" };
     if (positional.length > 2) throw new Error("brief accepts one document path");
-    const unsupported = Object.keys(opts).filter((key) => !["style", "output", "reference"].includes(key));
+    const unsupported = Object.keys(opts).filter((key) => !["style", "output", "reference", "map"].includes(key));
     if (unsupported.length) throw new Error(`Unsupported brief options: ${unsupported.join(", ")}; edit the document's theme/canvas first`);
     return { kind: "image-brief", input,
       style: parseEnum("--style", opts.style, isImageStyle, IMAGE_STYLES) ?? "schematic",
-      output: opts.output, reference: opts.reference };
+      output: opts.output, reference: opts.reference, ...(opts.map ? { map: opts.map } : {}) };
   }
-  if (opts.style !== undefined || opts.reference !== undefined) {
-    throw new Error("--style and --reference require the brief command");
+  if (opts.style !== undefined || opts.reference !== undefined || opts.map !== undefined) {
+    throw new Error("--style, --reference and --map require the brief command");
   }
 
   if (positional[0] === "render") {
@@ -245,6 +246,9 @@ function parse(argv: string[]) {
         break;
       case "--reference":
         opts.reference = takeValue(a, ++i);
+        break;
+      case "--map":
+        opts.map = takeValue(a, ++i);
         break;
       case "-r":
       case "--radius":

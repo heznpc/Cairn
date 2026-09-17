@@ -123,10 +123,12 @@ if (readFileSync(cliPdfPath).subarray(0, 8).toString("ascii") !== "%PDF-1.4") {
 
 const briefPath = join(installDir, "brief.json");
 const referencePath = join(installDir, "reference.png");
-run(process.execPath, [cliPath, "brief", cliDocumentPath, "--style", "pictorial", "-o", briefPath, "--reference", referencePath], { cwd: installDir });
+const briefMapPath = join(installDir, "brief-map.png");
+run(process.execPath, [cliPath, "brief", cliDocumentPath, "--style", "pictorial", "-o", briefPath, "--reference", referencePath, "--map", briefMapPath], { cwd: installDir });
 if (JSON.parse(readFileSync(briefPath, "utf8")).style !== "pictorial" ||
-    !readFileSync(referencePath).subarray(1, 4).equals(Buffer.from("PNG"))) {
-  throw new Error("installed CLI did not export an image brief/reference");
+    !readFileSync(referencePath).subarray(1, 4).equals(Buffer.from("PNG")) ||
+    !readFileSync(briefMapPath).subarray(1, 4).equals(Buffer.from("PNG"))) {
+  throw new Error("installed CLI did not export an image brief/reference/map");
 }
 let sourceOverwriteRefused = false;
 try {
@@ -207,9 +209,10 @@ try {
   for (const style of ["schematic", "neighborhood", "pictorial"]) {
     const brief = await client.callTool({ name: "prepare_image_brief", arguments: { document, style } });
     if (brief.isError || brief.structuredContent?.style !== style) throw new Error("installed image brief failed");
-    const image = brief.content.find((item) => item.type === "image");
-    if (!image || Buffer.from(image.data, "base64").subarray(1, 4).toString() !== "PNG") {
-      throw new Error("installed image brief did not return a reference PNG");
+    const images = brief.content.filter((item) => item.type === "image");
+    if (images.length !== 2 || images.some((image) => Buffer.from(image.data, "base64").subarray(1, 4).toString() !== "PNG") ||
+        !brief.structuredContent?.mapSvg?.includes("data-display-road")) {
+      throw new Error("installed image brief did not return a blueprint and code-rendered map");
     }
   }
   if (rendered.isError) throw new Error("installed render_document returned an error");

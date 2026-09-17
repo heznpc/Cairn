@@ -21,8 +21,8 @@ Most maps are too accurate to be useful. Korean 약도 (yakdo) and Japanese 略�
 
 ## Currently implemented
 
-- **6 MCP tools** over stdio: `generate_map` (address → SVG + editable document), `render_document` (patch + re-render), `prepare_image_brief` (document → grounded host-image prompt + reference), `geocode`, `find_landmarks`, and `find_roads`.
-- **Host image workflow with three compositions.** `schematic` for compact yakdo, `neighborhood` for geographic context, and `pictorial` for landmark-led guides. Combine them with the existing four themes. Cairn prepares source-backed directions and a reference PNG/SVG; the host's image tool generates pixels and the host reviews spelling and placement. Image quality is not guaranteed by a successful brief call.
+- **6 MCP tools** over stdio: `generate_map` (address → SVG + editable document), `render_document` (patch + re-render), `prepare_image_brief` (document → deterministic pictogram map, road blueprint and optional host-image prompt), `geocode`, `find_landmarks`, and `find_roads`.
+- **Three map compositions.** `schematic` for compact yakdo, `neighborhood` for geographic context, and `pictorial` for landmark-led guides. Cairn renders the road paths, pictograms and literal labels in code. A host image tool can optionally restyle the blueprint, but those generated pixels require separate visual review.
 - **Chat-first wayfinding skill** in [`skills/create-wayfinding-map`](skills/create-wayfinding-map/SKILL.md) — teaches compatible AI hosts to generate, visually inspect, patch, and re-render a map instead of accepting the first SVG draft.
 - **Zero-API-key path.** OSM Nominatim + Overpass only. No Mapbox / Google keys, no account, no quota signup.
 - **Works anywhere OSM does.** Place names come back exactly as OpenStreetMap has them, because a 약도 should read like the signs around it — `Rue de Rivoli` stays French. Only the labels cairn *generates* take a language, and that follows the destination's country: Seoul renders `여기` / `3번 출구`, Berlin `Hier` / `Ausgang 3`, Stockholm `Här`. Override with `--language`. The projection applies a cos(latitude) correction and a single uniform scale, so a Stockholm map keeps its true proportions instead of being stretched horizontally. POI lookups cover tram stops, ferry piers, supermarkets, and pharmacies, and query ways and relations so the polygon-mapped parks, hospitals, and schools common outside East Asia are visible.
@@ -211,7 +211,7 @@ document also removes it from the available approach network.
 |---|---|
 | `generate_map` | Address → SVG + editable document (set `roads: false` to skip the skeleton) |
 | `render_document` | Apply a minimal patch to an editable document and return revised SVG + document |
-| `prepare_image_brief` | Document + image style → prompt, geographic reference PNG/SVG, source facts and visual review checks; runs offline |
+| `prepare_image_brief` | Document + style → deterministic map and road blueprint PNG/SVG, optional image prompt, source facts and visual review checks; runs offline |
 | `geocode` | Address → ranked coordinates, candidates, and ambiguity flag |
 | `find_landmarks` | Coordinates → nearby points of interest |
 | `find_roads` | Coordinates → simplified road polylines, classified by tier |
@@ -223,22 +223,29 @@ Granular tools let an LLM compose smarter pipelines — for example, "find landm
 `theme: "paper" | "mono" | "civic" | "invitation"`. The old `preset` field
 remains an alias for `template`; `template` wins when both are supplied.
 
-## Host-generated image styles
+## Map styles and optional image generation
 
 Use the packaged skill's [image workflow](skills/create-wayfinding-map/references/image-workflow.md)
-when a styled image is preferable to deterministic SVG. The host image tool is
-optional and external to the server; its availability and cost depend on the host.
-The default CLI/SVG path still needs no API key or image model.
+for deterministic pictogram maps or a host-generated illustration. The host image
+tool is optional and external to the server; its availability and cost depend on
+the host. The code-rendered SVG/PNG/PDF path needs no API key or image model.
 
 ```bash
 cairn "서울 강남구 테헤란로 152" --label "강남파이낸스센터" --save-document office.json -o office.svg
-cairn brief office.json --style schematic -o brief.json --reference reference.png
+cairn brief office.json --style schematic -o brief.json --reference reference.png --map map.png
 ```
 
-Pass `brief.json`'s `prompt` and `reference.png` to the host image tool, then
-inspect the actual image with the returned checks. The CLI prepares the brief;
-it does not call a model. In MCP, `prepare_image_brief` also returns the reference
-as an `image/png` content block so a capable host can use it directly.
+`map.png` is the code-rendered map; `--map` also accepts `.svg` and `.pdf`.
+Its road paths are identical to those in `reference.png`. Connected source ways
+are joined by OSM node identity. In schematic and pictorial styles, sufficiently
+straight, overlapping, opposite one-way carriageways can share one centerline;
+real bends and staggered junctions remain. `sourceReferenceSvg` retains the
+selected source geometry for comparison. In MCP, the first PNG is the blueprint
+and the second is the finished map (`mapSvg` in structured output).
+
+For an optional generative restyle, pass `brief.json`'s `prompt` and
+`reference.png` to the host image tool and inspect its output with the returned
+checks. The CLI does not call a model.
 
 | Image style | Information design |
 |---|---|
@@ -252,8 +259,8 @@ visibility or theme through document patches before rebuilding the brief.
 The brief preserves original geographic anchors even if decorative marker
 offsets are set. Road and landmark budgets vary by style; omissions are reported.
 
-Reference geometry and shared-node evidence constrain the prompt, not the image
-model's pixels. Coordinates alone do not establish building containment, usable
+The deterministic map shares the blueprint's road paths. A generative restyle
+does not have that guarantee. Coordinates alone do not establish building containment, usable
 entrances or pedestrian access. No walking route or building footprints are
 supplied by this tool. The host must catch misplaced icons, invented details and
 text errors. Retain the input document, brief, reference and any corrective

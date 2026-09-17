@@ -10,7 +10,7 @@ import { IMAGE_STYLES } from "./image-styles.js";
 
 export const imageBriefOutputSchema = {
   type: "object",
-  required: ["version", "style", "theme", "canvas", "prompt", "referenceSvg", "facts", "checks", "warnings"],
+  required: ["version", "style", "theme", "canvas", "prompt", "referenceSvg", "sourceReferenceSvg", "mapSvg", "facts", "checks", "warnings"],
   additionalProperties: false,
   properties: {
     version: { type: "integer", const: 1 },
@@ -19,11 +19,15 @@ export const imageBriefOutputSchema = {
     canvas: { type: "object", required: ["width", "height"], additionalProperties: false,
       properties: { width: { type: "integer" }, height: { type: "integer" } } },
     prompt: { type: "string", description: "Directions for the host's image tool. Pass with the reference image; not itself a generated map." },
-    referenceSvg: { type: "string", description: "North-up geographic reference; the tool also returns this as an image/png content block." },
-    facts: { type: "object", required: ["destination", "landmarks", "roads", "sharedNodes", "roadContinuities", "roadRelations", "requestedStart"],
+    referenceSvg: { type: "string", description: "Code-built display road blueprint, also returned as the first PNG." },
+    sourceReferenceSvg: { type: "string", description: "Unmodified source road geometry for geographic comparison." },
+    mapSvg: { type: "string", description: "Finished deterministic map using the blueprint road paths, pictograms and literal labels. Also returned as the second PNG." },
+    facts: { type: "object", required: ["destination", "landmarks", "roads", "sharedNodes", "displayRoads", "displayNodes", "roadContinuities", "roadRelations", "requestedStart"],
       additionalProperties: false, properties: {
         destination: { type: "object" }, landmarks: { type: "array", items: { type: "object" } },
         roads: { type: "array", items: { type: "object" } }, sharedNodes: { type: "array", items: { type: "object" } },
+        displayRoads: { type: "array", items: { type: "object" } },
+        displayNodes: { type: "array", items: { type: "object" } },
         roadContinuities: { type: "array", items: { type: "object" },
           description: "Measured approach geometry at shared source nodes; near-straight or bent. Distinct junction nodes are never merged." },
         roadRelations: { type: "array", items: { type: "object" } },

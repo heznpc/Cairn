@@ -6,6 +6,9 @@ describe("parseCliRequest", () => {
     expect(parseCliRequest(["brief", "map.json", "--style", "pictorial", "--reference", "ref.png", "-o", "brief.json"]))
       .toEqual({ kind: "image-brief", input: "map.json", style: "pictorial", reference: "ref.png", output: "brief.json" });
     expect(parseCliRequest(["brief"])).toEqual({ kind: "missing-document" });
+    expect(parseCliRequest(["brief", "map.json", "--map", "map.png"]))
+      .toMatchObject({ kind: "image-brief", map: "map.png" });
+    expect(() => parseCliRequest(["Seoul", "--map", "map.png"])).toThrow(/require the brief command/);
     expect(() => parseCliRequest(["brief", "map.json", "--style", "unknown"])).toThrow(/--style/);
     expect(() => parseCliRequest(["brief", "map.json", "--theme", "mono"])).toThrow(/Unsupported brief options/);
     expect(() => parseCliRequest(["Seoul", "--style", "schematic"])).toThrow(/require the brief command/);
