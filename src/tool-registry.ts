@@ -17,6 +17,7 @@ import {
   diagramDocumentPatchJsonSchema,
   findLandmarksOutputSchema,
   findRoadsOutputSchema,
+  findBuildingsOutputSchema,
   generateMapOutputSchema,
   geocodeOutputSchema,
   renderDocumentOutputSchema,
@@ -100,6 +101,7 @@ export const tools = [
           enum: RENDER_PRESETS,
           description: "Compatibility alias for template. Ignored when template is also provided.",
         },
+        buildings: { type: "boolean", description: "Fetch actual surrounding building footprints (default on with roads)" },
         roads: { type: "boolean", description: "Draw the road skeleton (default true)" },
         focus: { type: "boolean", description: "Fisheye-emphasize the destination area for map-skeleton diagram presets: standard, compact, schematic (default false)" },
       },
@@ -180,5 +182,17 @@ export const tools = [
     },
     outputSchema: findRoadsOutputSchema,
     annotations: safeAnnotations,
+  },
+  {
+    name: "find_buildings",
+    description: "Fetch actual OpenStreetMap building outlines and courtyard holes near coordinates. Returns raw source polygons for map.buildings; coverage is partial. No invented parcels, subdivisions or entrances.",
+    inputSchema: {
+      type: "object", additionalProperties: false, required: ["lat", "lon"],
+      properties: {
+        lat: { type: "number", ...LATITUDE_RANGE }, lon: { type: "number", ...LONGITUDE_RANGE },
+        radiusMeters: { type: "integer", minimum: 1, maximum: MAX_RADIUS_METERS, description: "Default 480, max 5000" },
+      },
+    },
+    outputSchema: findBuildingsOutputSchema, annotations: safeAnnotations,
   },
 ];

@@ -91,6 +91,7 @@ async function main() {
 
   const { svg, layout, document } = await generateMap(request.address, request.options);
 
+  if (layout.buildingContext?.status === "unavailable") console.error("Building footprints unavailable; blank areas are unknown, not open ground.");
   if (request.documentOutput) {
     writeFileSync(
       request.documentOutput,

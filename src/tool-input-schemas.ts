@@ -55,6 +55,7 @@ export const GenerateMapArgs = z.object({
     .boolean()
     .optional()
     .describe("Draw the road skeleton (default true). Set false to skip the extra Overpass round-trip."),
+  buildings: z.boolean().optional().describe("Fetch source building footprints (default on with roads)."),
   focus: z
     .boolean()
     .optional()
@@ -86,3 +87,5 @@ export const FindRoadsArgs = z.object({
   lon: LongitudeArg,
   radiusMeters: RadiusArg.optional(),
 }).strict();
+
+export const FindBuildingsArgs = FindRoadsArgs;

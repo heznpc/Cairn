@@ -1,3 +1,4 @@
+import { renderBuildingLayer } from "./footprints.js";
 import type { MapLayout } from "../types.js";
 import { markerStyle } from "./icons.js";
 import { pointsToPathData, roadStyle } from "./road-layout.js";
@@ -51,6 +52,8 @@ export function renderStandardMapSceneSVG(scene: StandardMapScene): string {
       `<rect x="14" y="14" width="${width - 28}" height="${height - 28}" fill="none" stroke="${theme.frame}" stroke-width="1"/>`,
     );
   }
+
+  lines.push(renderBuildingLayer(scene.buildings, { width, height }, theme.destination, themeName === "mono"));
 
   for (const [index, landmark] of landmarks.entries()) {
     if (!landmark.leader) continue;

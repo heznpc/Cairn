@@ -8,8 +8,9 @@ of available formats, not population preference. Record the intended delivery
 size and what information the reader must locate. Do not turn one user's choice
 into a universal aesthetic rule.
 
-`editorial` preserves the destination's enclosing streets before simplifying
-context. Six street groups and four landmarks are a starting budget; the
+`editorial` preserves the destination's enclosing streets and source building
+footprints before simplifying context. Show neighboring outlines and gaps:
+a street enclosure alone cannot locate a building in a dense city. Six street groups and four landmarks are a starting budget; the
 source-node enclosure is protected. The whole scene can rotate up to 30 degrees
 to organize a nearby main street, with one uniform scale and a matching north
 arrow. Real bends and all road/place relationships remain intact.
@@ -28,6 +29,8 @@ approved reference. Earlier drafts failed even though topology tests passed.
 
 | Reject when | Change the cause |
 |---|---|
+| An urban destination floats in an empty block with no neighboring building context | Fetch actual footprints, retain their gaps and highlight the unambiguous destination outline; missing coverage stays unresolved |
+| A label erases the highlighted building boundary | Place the label beside or wholly inside that footprint while keeping its association clear |
 | Road bands or exit badges attract attention before the destination | Adjust road weight, type hierarchy and accent allocation |
 | The useful cluster is crowded while large parts of the canvas are unused | Reframe the block and arrival context together; preserve one scale/rotation |
 | A closed block exists in data but its boundary is visually weak | Retain enclosing streets and give them readable weight |
@@ -100,6 +103,13 @@ user asks to compare. Colors remain independent: use the document's existing
    address and an appropriate landmark limit (4 / 8 / 6 are useful starting
    points for the legacy styles; editorial retains 4 landmarks). Retain the document. Resolve ambiguous
    destinations before image generation as in the main workflow.
+   New documents include source building polygons by default. For a legacy
+   urban document without them, call `find_buildings` around `map.center`,
+   retain its returned polygons as `map.buildings` in the complete document,
+   and set `map.buildingContext` to `{ source: "OpenStreetMap", status: "fetched",
+   radiusMeters: <the queried radius> }`. Validate that document through
+   `render_document` before preparing another brief. A failed lookup must not
+   be recorded as fetched. `prepare_image_brief` itself stays offline.
 2. Put truthful label edits and hidden places into the document with
    `render_document`. Shorten a long institution name only when its identity
    remains clear. Do not rely on an image model to abbreviate it.
@@ -140,8 +150,11 @@ send only the style name. Inspect a local reference before attaching it if the
 host tool requires that. Keep the generated brief unchanged for the first run,
 so its actual behavior can be assessed without undocumented manual layout work.
 
-The reference establishes coordinates and selected road geometry, not building
-footprints, entrance accessibility, or a walking route. A supplied real map or
+The reference establishes coordinates, selected road geometry and supplied
+source building outlines, including courtyard holes. Coverage is partial;
+unmapped gaps do not establish vacant land. Footprint containment is based on
+the selected geocode point, not independent proof of an address or entrance.
+It does not establish entrance accessibility or a walking route. A supplied real map or
 photo may supplement it, but a previous generated image is not geographic
 evidence. Do not invent extra roads or buildings just to fill space. Do not
 impose a fixed two-road cross on unrelated places.

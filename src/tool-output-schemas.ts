@@ -1,5 +1,6 @@
 import {
   diagramDocumentJsonSchema,
+  buildingItemJsonSchema,
   landmarkItemJsonSchema,
   mapLayoutJsonSchema,
   roadItemJsonSchema,
@@ -35,6 +36,7 @@ export const imageBriefOutputSchema = {
           description: "Measured approach geometry at shared source nodes; near-straight or bent. Distinct junction nodes are never merged." },
         roadRelations: { type: "array", items: { type: "object" } },
         requestedStart: { type: ["string", "null"] },
+        buildingContext: { type: "object", description: "Projected source building polygons, courtyard holes, partial coverage and destination-point containment result." },
         destinationBlock: { type: "object", description: "Source-node street face containing the destination, retained regardless of style budget. Not a building footprint or route." },
       } },
     checks: { type: "array", items: { type: "string" } },
@@ -121,4 +123,9 @@ export const findRoadsOutputSchema = {
   properties: {
     roads: { type: "array", items: roadItemJsonSchema },
   },
+} as const;
+
+export const findBuildingsOutputSchema = {
+  type: "object", required: ["buildings"], additionalProperties: false,
+  properties: { buildings: { type: "array", items: buildingItemJsonSchema } },
 } as const;

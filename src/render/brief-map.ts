@@ -1,3 +1,4 @@
+import { renderBuildingLayer, type ProjectedBuilding } from "./footprints.js";
 import type { LandmarkCategory, NormalizedPosition, RenderTheme } from "../types.js";
 import type { ImageStyle } from "../image-styles.js";
 import type { DisplayRoad } from "./display-roads.js";
@@ -34,7 +35,7 @@ export function displayRoadPaths(roads: DisplayRoad[], canvas: Canvas, color = "
 }
 
 /** Code-rendered map: image-model output cannot replace this road layer. */
-export function renderBriefMap(canvas: Canvas, roads: DisplayRoad[], places: Place[], theme: RenderTheme, style: ImageStyle, destinationBoundary?: NormalizedPosition[], rotationDegrees = 0): string {
+export function renderBriefMap(canvas: Canvas, roads: DisplayRoad[], places: Place[], theme: RenderTheme, style: ImageStyle, destinationBoundary?: NormalizedPosition[], rotationDegrees = 0, buildings: ProjectedBuilding[] = []): string {
   const editorial = style === "editorial";
   const design = EDITORIAL_DESIGN.tokens;
   const frame = editorial ? editorialFrame(canvas) : { x: 16, y: 16, width: canvas.width - 32, height: canvas.height - 56 };
@@ -51,6 +52,14 @@ export function renderBriefMap(canvas: Canvas, roads: DisplayRoad[], places: Pla
   const segments = roads.flatMap((road) => road.points.slice(1).map((p, i) => ({
     a: pixels(road.points[i], canvas), b: pixels(p, canvas), halfWidth: widthFor(road, style) / 2 + 5,
   })));
+  const destinationFootprint = buildings.find((b) => b.destination);
+  const footprintPoints = destinationFootprint?.polygons.flatMap((p) => p.outer.map((v) => pixels(v, canvas)));
+  const footprintBox = footprintPoints?.length ? {
+    x: Math.min(...footprintPoints.map((p) => p.x)), y: Math.min(...footprintPoints.map((p) => p.y)),
+    right: Math.max(...footprintPoints.map((p) => p.x)), bottom: Math.max(...footprintPoints.map((p) => p.y)),
+  } : undefined;
+  const footprintEdges = destinationFootprint?.polygons.flatMap((p) => [p.outer, ...p.holes].flatMap((ring) =>
+    ring.slice(1).map((v, i) => ({ a: pixels(ring[i], canvas), b: pixels(v, canvas) })))) ?? [];
   const labels = icons.map((place) => {
     const size = place.key === "D" ? visual.destinationText : visual.text;
     const maxChars = editorial ? place.key === "D" ? 18 : 7 : place.key === "D" ? 6 : 8;
@@ -98,6 +107,11 @@ export function renderBriefMap(canvas: Canvas, roads: DisplayRoad[], places: Pla
         }
       }
     }
+    if (footprintBox) {
+      for (const x of [place.x - width / 2, (footprintBox.x + footprintBox.right - width) / 2, place.x - width - 32, place.x + 32]) {
+        candidates.push({ x, y: footprintBox.y - height - 14, width, height }, { x, y: footprintBox.bottom + 14, width, height });
+      }
+    }
     const scored = candidates.map((box, i) => {
       const center = { x: box.x + box.width / 2, y: box.y + box.height / 2 };
       const pin = nearestLabelEdge(place, box);
@@ -107,6 +121,7 @@ export function renderBriefMap(canvas: Canvas, roads: DisplayRoad[], places: Pla
         { x: box.x, y: box.y + box.height }, { x: box.x + box.width, y: box.y + box.height },
       ].every((corner) => insidePolygon(corner, block))) score += 1e9;
       if (box.x < frame.x + 8 || box.y < (editorial ? frame.y + 12 : 45) || box.x + box.width > frame.x + frame.width - 8 || box.y + box.height > (editorial ? frame.y + frame.height - 8 : canvas.height - 40)) score += 1e6;
+      if (footprintEdges.some(({ a, b }) => clipSegment(a.x, a.y, b.x, b.y, box.x - 5, box.y - 5, box.x + width + 5, box.y + height + 5))) score += 5e5;
       iconBoxes.forEach((icon, j) => {
         if (overlapArea(box, icon) > 0) score += 1e8;
         if (icons[j].key !== place.key && clipSegment(place.x, place.y, pin.x, pin.y,
@@ -165,14 +180,16 @@ export function renderBriefMap(canvas: Canvas, roads: DisplayRoad[], places: Pla
       const box = { x: p.x - labelWidth / 2 - 4, y: p.y - fontSize / 2 - 3, width: labelWidth + 8, height: fontSize + 6 };
       return box.x > frame.x + 8 && box.x + box.width < frame.x + frame.width - 8 &&
         box.y > frame.y + 35 && box.y + box.height < frame.y + frame.height - 16 &&
+        !footprintEdges.some(({ a, b }) => clipSegment(a.x, a.y, b.x, b.y, box.x - 4, box.y - 4, box.x + box.width + 4, box.y + box.height + 4)) &&
         ![...iconBoxes, ...boxes, ...streetBoxes].some((other) => overlapArea(box, other) > 0) &&
         (!editorial || !segments.some(({ a, b, halfWidth: h }) => clipSegment(a.x, a.y, b.x, b.y, box.x - h + 5, box.y - h + 5, box.x + box.width + h - 5, box.y + box.height + h - 5)));
     });
     if (!label) continue;
     named.add(road.label);
-    streetBoxes.push({ x: label.x - labelWidth / 2, y: label.y - fontSize / 2, width: labelWidth, height: fontSize });
+    const streetBox = { x: label.x - labelWidth / 2, y: label.y - fontSize / 2, width: labelWidth, height: fontSize };
+    streetBoxes.push(streetBox);
     const angle = label.angle > 90 ? label.angle - 180 : label.angle < -90 ? label.angle + 180 : label.angle;
-    roadLabels.push(`<text id="road-label-${escapeXml(road.key)}" transform="translate(${label.x.toFixed(2)} ${label.y.toFixed(2)}) rotate(${angle.toFixed(2)})" text-anchor="middle" dominant-baseline="middle" font-size="${fontSize}" font-weight="${editorial ? 500 : 400}" fill="${editorial ? design.muted : ink}">${escapeXml(road.label)}</text>`);
+    roadLabels.push(`<text id="road-label-${escapeXml(road.key)}" data-label-box="${Object.values(streetBox).map((n) => n.toFixed(2)).join(" ")}" transform="translate(${label.x.toFixed(2)} ${label.y.toFixed(2)}) rotate(${angle.toFixed(2)})" text-anchor="middle" dominant-baseline="middle" font-size="${fontSize}" font-weight="${editorial ? 500 : 400}" paint-order="stroke" stroke="${background}" stroke-width="${buildings.length ? 4 : 0}" stroke-linejoin="round" fill="${editorial ? design.muted : ink}">${escapeXml(road.label)}</text>`);
   }
   icons.forEach((place, i) => {
     const category = place.category ?? "building";
@@ -188,13 +205,13 @@ export function renderBriefMap(canvas: Canvas, roads: DisplayRoad[], places: Pla
     const box = boxes[i], { lines, size, padding } = labels[i];
     const pin = nearestLabelEdge(place, box);
     const dx = pin.x - place.x, dy = pin.y - place.y, distance = Math.hypot(dx, dy);
-    const leader = distance > place.radius + 24
+    const leader = !(place.key === "D" && destinationFootprint) && distance > place.radius + 24
       ? `<path id="leader-${id}" d="M${(place.x + dx * place.radius / distance).toFixed(2)},${(place.y + dy * place.radius / distance).toFixed(2)} L${pin.x.toFixed(2)},${pin.y.toFixed(2)}" fill="none" stroke="#7c858b" stroke-width="1"/>` : "";
-    const text = `<text id="label-${id}" data-place-label="${escapeXml(place.key)}" data-label-box="${[box.x, box.y, box.width, box.height].map((v) => v.toFixed(2)).join(" ")}" x="${(box.x + box.width / 2).toFixed(2)}" y="${(box.y + size + padding - (editorial ? 2 : 0)).toFixed(2)}" text-anchor="middle" font-size="${size}" font-weight="${place.key === "D" || editorial ? 700 : 550}" fill="${place.key === "D" ? accent : ink}">${lines.map((line, j) => `<tspan x="${(box.x + box.width / 2).toFixed(2)}" dy="${j ? size + 5 : 0}">${escapeXml(line)}</tspan>`).join("")}</text>`;
+    const text = `<text id="label-${id}" data-place-label="${escapeXml(place.key)}" data-label-box="${[box.x, box.y, box.width, box.height].map((v) => v.toFixed(2)).join(" ")}" x="${(box.x + box.width / 2).toFixed(2)}" y="${(box.y + size + padding - (editorial ? 2 : 0)).toFixed(2)}" text-anchor="middle" font-size="${size}" font-weight="${place.key === "D" || editorial ? 700 : 550}" paint-order="stroke" stroke="${background}" stroke-width="${buildings.length ? 4 : 0}" stroke-linejoin="round" fill="${place.key === "D" ? accent : ink}">${lines.map((line, j) => `<tspan x="${(box.x + box.width / 2).toFixed(2)}" dy="${j ? size + 5 : 0}">${escapeXml(line)}</tspan>`).join("")}</text>`;
     placeGroups.push(`<g id="place-${id}" data-place="${escapeXml(place.key)}"><title>${escapeXml(place.label)}</title>${leader}${icon}${text}</g>`);
   });
   const heading = editorial ? `<g id="orientation" transform="translate(50 65)" fill="${ink}"><text y="-20" text-anchor="middle" font-size="17" font-weight="700">N</text><path transform="rotate(${rotationDegrees.toFixed(2)})" d="M0,-12 L-8,14 L0,8 L8,14 Z"/></g>` : "";
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="${canvas.width}" height="${canvas.height}" viewBox="0 0 ${canvas.width} ${canvas.height}" font-family="${editorial ? "'Apple SD Gothic Neo', 'Noto Sans CJK KR', Arial" : "Arial, 'Apple SD Gothic Neo', 'Noto Sans CJK KR'"}, sans-serif"><metadata>Map data © OpenStreetMap contributors, ODbL. Deterministic road geometry. Category pictograms are symbolic, not building likenesses.</metadata><rect id="background" width="100%" height="100%" fill="${background}"/>${heading}<defs><clipPath id="map"><rect x="${frame.x}" y="${frame.y}" width="${frame.width}" height="${frame.height}"/></clipPath></defs><g clip-path="url(#map)"><g id="roads">${displayRoadPaths(roads, canvas, roadColor, style)}</g><g id="road-labels">${roadLabels.join("")}</g><g id="places">${placeGroups.join("")}</g></g><text id="attribution" x="${editorial ? frame.x : 28}" y="${canvas.height - (editorial ? 20 : 16)}" font-size="12" fill="#737b81">© OpenStreetMap contributors</text></svg>`;
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${canvas.width}" height="${canvas.height}" viewBox="0 0 ${canvas.width} ${canvas.height}" font-family="${editorial ? "'Apple SD Gothic Neo', 'Noto Sans CJK KR', Arial" : "Arial, 'Apple SD Gothic Neo', 'Noto Sans CJK KR'"}, sans-serif"><metadata>Map data © OpenStreetMap contributors, ODbL. Deterministic road geometry. Footprints are partial OSM data, not verified entrances or parcels. Category pictograms are symbolic, not building likenesses.</metadata><rect id="background" width="100%" height="100%" fill="${background}"/><defs><clipPath id="map"><rect x="${frame.x}" y="${frame.y}" width="${frame.width}" height="${frame.height}"/></clipPath></defs><g clip-path="url(#map)">${renderBuildingLayer(buildings, canvas, accent, theme === "mono")}<g id="roads">${displayRoadPaths(roads, canvas, roadColor, style)}</g><g id="road-labels">${roadLabels.join("")}</g><g id="places">${placeGroups.join("")}</g></g>${heading}<text id="attribution" x="${editorial ? frame.x : 28}" y="${canvas.height - (editorial ? 20 : 16)}" font-size="12" fill="#737b81">© OpenStreetMap contributors</text></svg>`;
 }
 
 function nearestLabelEdge(point: Point, box: Box): Point {

@@ -6,6 +6,7 @@ vi.mock("./geocode.js", () => ({
 vi.mock("./landmarks.js", () => ({
   findLandmarks: vi.fn(),
 }));
+vi.mock("./buildings.js", () => ({ findBuildings: vi.fn() }));
 vi.mock("./roads.js", () => ({
   findRoads: vi.fn(),
 }));
@@ -18,6 +19,7 @@ vi.mock("./render.js", () => ({
 
 import { geocode } from "./geocode.js";
 import { findLandmarks } from "./landmarks.js";
+import { findBuildings } from "./buildings.js";
 import { findRoads } from "./roads.js";
 import { curate } from "./curate.js";
 import { renderSVG } from "./render.js";
@@ -55,6 +57,7 @@ beforeEach(() => {
   mockedFindLandmarks.mockResolvedValue([landmark]);
   mockedCurate.mockReturnValue([landmark]);
   mockedFindRoads.mockResolvedValue([]);
+  vi.mocked(findBuildings).mockResolvedValue([]);
   mockedRenderSVG.mockReturnValue("<svg></svg>");
 });
 
@@ -96,11 +99,26 @@ describe("generateMap", () => {
     expect(mockedFindRoads).toHaveBeenCalledWith(geo.lat, geo.lon, 5000, undefined);
   });
 
+  it("retains footprint fetch failure as explicit unknown context without failing the map", async () => {
+    vi.mocked(findBuildings).mockRejectedValue(new Error("upstream down"));
+    const result = await generateMap("Seoul");
+    expect(result.document.map.buildingContext?.status).toBe("unavailable");
+    expect(result.document.map.buildings).toEqual([]);
+  });
+
+  it("can explicitly skip footprints while retaining roads", async () => {
+    const result = await generateMap("Seoul", { buildings: false });
+    expect(findBuildings).not.toHaveBeenCalled();
+    expect(mockedFindRoads).toHaveBeenCalled();
+    expect(result.document.map.buildingContext?.status).toBe("not-requested");
+  });
+
   it("does not query roads when roads are disabled", async () => {
     const result = await generateMap("서울 강남구 테헤란로 152", { roads: false });
 
     expect(mockedFindRoads).not.toHaveBeenCalled();
     expect(result.layout.roads).toEqual([]);
+    expect(findBuildings).not.toHaveBeenCalled();
   });
 
   it("passes the render layout option through to renderSVG", async () => {

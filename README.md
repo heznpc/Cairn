@@ -21,13 +21,14 @@ Most maps are too accurate to be useful. Korean 약도 (yakdo) and Japanese 略�
 
 ## Currently implemented
 
-- **6 MCP tools** over stdio: `generate_map` (address → SVG + editable document), `render_document` (patch + re-render), `prepare_image_brief` (document → deterministic pictogram map, road blueprint and optional host-image prompt), `geocode`, `find_landmarks`, and `find_roads`.
+- **7 MCP tools** over stdio: `generate_map` (address → SVG + editable document), `render_document` (patch + re-render), `prepare_image_brief` (document → deterministic pictogram map, road blueprint and optional host-image prompt), `geocode`, `find_landmarks`, `find_roads`, and `find_buildings`.
 - **Pictogram maps with reviewable design criteria.** `pictorial` is the default; the `editorial` prototype protects the destination’s enclosing streets and uses a coherent flat pictogram family with a destination accent. `schematic` and `neighborhood` remain available. Cairn renders the road paths, pictograms and literal labels in code. Optional host-generated restyles require separate visual review.
 - **Chat-first wayfinding skill** in [`skills/create-wayfinding-map`](skills/create-wayfinding-map/SKILL.md) — teaches compatible AI hosts to generate, visually inspect, patch, and re-render a map instead of accepting the first SVG draft.
 - **Zero-API-key path.** OSM Nominatim + Overpass only. No Mapbox / Google keys, no account, no quota signup.
 - **Works anywhere OSM does.** Place names come back exactly as OpenStreetMap has them, because a 약도 should read like the signs around it — `Rue de Rivoli` stays French. Only the labels cairn *generates* take a language, and that follows the destination's country: Seoul renders `여기` / `3번 출구`, Berlin `Hier` / `Ausgang 3`, Stockholm `Här`. Override with `--language`. The projection applies a cos(latitude) correction and a single uniform scale, so a Stockholm map keeps its true proportions instead of being stretched horizontally. POI lookups cover tram stops, ferry piers, supermarkets, and pharmacies, and query ways and relations so the polygon-mapped parks, hospitals, and schools common outside East Asia are visible.
 - **Cache, offline, and mirrors.** Responses are cached on disk, so iterating on one address costs one set of network calls (a cold London render takes 5.2s, a warm one 0.27s, byte-identical). `--offline` renders from cache alone, `--refresh` re-fetches, and transient 429/5xx responses from the public endpoints retry with backoff. `--nominatim-url` / `--overpass-url` point at a self-hosted or mirrored deployment; endpoints are CLI/environment settings only, never MCP tool arguments, so a host LLM can't aim cairn at an arbitrary URL.
 - **Road skeleton** in [src/roads.ts](src/roads.ts) — fetches nearby roads, classifies them by importance tier (primary / secondary / tertiary / residential), and simplifies each polyline with Douglas-Peucker ([src/geometry.ts](src/geometry.ts)). This is what turns the output from a scatter of points into an actual 약도: a few roads you navigate along, with the major ones labeled.
+- **Source building context** — address generation fetches OSM building outlines by default, preserving courtyard holes and typed source IDs in the editable document. Image briefs and the geographic SVG renderer show neighboring footprints and highlight a destination only when one outline contains the selected geocode point. Missing coverage stays unknown; no invented subdivisions or entrances. Use `buildings: false` / `--no-buildings` to skip this lookup.
 - **Deterministic curation heuristic** in [src/curate.ts](src/curate.ts) — weights importance (transit > civic > shop), targets a ~150 m sweet-spot distance, enforces category diversity, caps at the requested `limit` (default 5).
 - **Pictogram SVG renderer** — curated road bands, category-specific SVG pictograms, coalesced station/exit labels, route-aware final-approach arrows, deduped road-name labels, destination callouts, and visible OSM attribution tuned for print-style 약도 output. Original OSM node adjacency produces an `osm-network` approach independently of the simplified display roads. Its node-connected portion is solid; unverified endpoint connectors and direction-only (`direct`) cues are dashed. These remain diagram hints, not certified pedestrian routing.
 - **CLI** with file output, label override, independent template/theme selection, and a `--no-roads` toggle:
@@ -70,7 +71,7 @@ Most maps are too accurate to be useful. Korean 약도 (yakdo) and Japanese 略�
 ## Design intent
 
 - **Fewer landmarks by design.** A good cairn is one stone stacked carefully, not a quarry. Every extra element costs cognitive load, so the default heuristic picks fewer landmarks than you'd expect — and that's the point.
-- **Granular and high-level tools, side by side.** `generate_map` is convenient; `geocode` + `find_landmarks` + `find_roads` exist so a host LLM can compose smarter pipelines than any single one-shot ever could.
+- **Granular and high-level tools, side by side.** `generate_map` is convenient; `geocode` + `find_landmarks` + `find_roads` + `find_buildings` exist so a host LLM can compose smarter pipelines than any single one-shot ever could.
 - **No server-side LLM calls.** The MCP server is a tool, not an agent: curation is deterministic, so it's debuggable, testable, and doesn't push token costs onto the user. Any LLM-powered refinement happens in the host process.
 - **Domain-neutral by design.** Business cards are the primary use case, but the render pipeline doesn't lock to that domain — wedding invitations, real estate listings, and event flyers all reuse the same primitives.
 - **Map-source-neutral renderer.** Address lookup currently uses OSM, but the renderer consumes `MapLayout`. Campus plans, indoor graphs, or game-world topology can use the same engine once adapted into that structure.
@@ -80,7 +81,7 @@ Most maps are too accurate to be useful. Korean 약도 (yakdo) and Japanese 略�
 
 cairn sends the address you type to two OpenStreetMap services in order to
 do its job: [Nominatim](https://nominatim.openstreetmap.org/) for geocoding
-and [Overpass](https://overpass-api.de/) for landmark and road lookup. Both run on
+and [Overpass](https://overpass-api.de/) for landmark, road and building lookup. Both run on
 the OSM Foundation's public infrastructure and follow the OSMF [privacy
 policy](https://wiki.osmfoundation.org/wiki/Privacy_Policy). cairn has no
 telemetry, no account, and reads no credentials from the environment.
@@ -172,7 +173,7 @@ const svg = renderDiagramDocument(JSON.parse(savedJson));
    Retry with a fuller address or the returned `candidateId` (`--candidate` in
    the CLI). Selection follows the candidate identity, not its ranking position.
 2. **Find landmarks** within a configurable radius (Overpass): transit stations, subway exits, schools, parks, recognizable shops, distinctive buildings.
-3. **Find roads** in the same area (Overpass), classify them by importance tier, and simplify each polyline (Douglas-Peucker).
+3. **Find roads and buildings** in the same area (Overpass). Classify and simplify road polylines; preserve actual building outlines and courtyard holes without inventing subdivisions. A building-fetch failure remains explicit in the document so the host cannot mistake missing data for open ground.
 4. **Curate** up to `limit` landmarks with the heuristic above (default 5).
    Category diversity caps each category at two, so a sparse or single-category
    area yields fewer rather than padding the map.
@@ -215,6 +216,7 @@ document also removes it from the available approach network.
 | `geocode` | Address → ranked coordinates, candidates, and ambiguity flag |
 | `find_landmarks` | Coordinates → nearby points of interest |
 | `find_roads` | Coordinates → simplified road polylines, classified by tier |
+| `find_buildings` | Coordinates → source building polygons, courtyard holes and OSM identities |
 
 Granular tools let an LLM compose smarter pipelines — for example, "find landmarks and roads, keep the two biggest roads and the three most recognizable landmarks, render with those."
 
@@ -266,7 +268,21 @@ and, for a nearby main street within 30 degrees of horizontal, one rigid rotatio
 The north arrow follows that rotation. All actual bends and source anchors remain.
 It protects enclosing streets beyond the road budget, reserves accent color for
 the destination, and keeps place labels on their icon's side of the street.
-This is street enclosure, not building-footprint or access data.
+Street enclosure and building footprints are separate evidence. The `buildings`
+SVG group retains source polygons and courtyard holes beneath the roads.
+`facts.buildingContext` reports acquisition, visible/discarded counts, partial OSM
+coverage, and the destination containment result. The editorial review blocks
+missing visible context, ambiguous/unmatched destination outlines when nearby
+buildings exist, and labels obscuring the destination boundary. A successful
+empty fetch does not pass as evidence of open land.
+
+Older documents remain readable. To add buildings to one, call `find_buildings`,
+store its result in `map.buildings`, record `map.buildingContext` with source
+`OpenStreetMap`, status `fetched` and the queried `radiusMeters`, then validate
+the complete document with `render_document`. `prepare_image_brief` stays
+offline. The older diagram templates can distort street geometry, so they do
+not overlay geographic building outlines; use an image brief or
+`layout: "geographic"` for building context.
 
 Compare with the actual prior PNG and review the output at delivery size:
 
@@ -290,7 +306,7 @@ The brief preserves original geographic anchors even if decorative marker
 offsets are set. Road and landmark budgets vary by style; omissions are reported.
 
 The exported SVG contains editable road paths, pictogram shapes and live text,
-not an embedded PNG. Named groups separate roads, street labels and places;
+not an embedded PNG. Named groups separate buildings, roads, street labels and places;
 each place's icon and text have IDs derived from its source identity. Pictorial
 style uses filled category symbols (including cinema reels from OSM tags),
 while schematic style retains compact line icons. Category symbols do not
@@ -303,9 +319,10 @@ no graphical editor or SVG-to-document import: edits made directly to an
 exported SVG must be kept in that SVG, and are not read back during regeneration.
 
 The deterministic map shares the blueprint's road paths. A generative restyle
-does not have that guarantee. Coordinates alone do not establish building containment, usable
-entrances or pedestrian access. No walking route or building footprints are
-supplied by this tool. The host must catch misplaced icons, invented details and
+does not have that guarantee. Footprint containment depends on the selected
+geocode point; it does not independently verify an address, usable entrances,
+parcels or pedestrian access. Building coverage remains partial, and no verified
+walking route is supplied by this tool. The host must catch misplaced icons, invented details and
 text errors. Retain the input document, brief, reference and any corrective
 prompts alongside the generated image. Repeated brief creation from identical
 inputs is reproducible; repeated image calls need not be.

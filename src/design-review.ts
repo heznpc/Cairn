@@ -8,6 +8,7 @@ interface Facts {
   destination: { key: string; anchor: NormalizedPosition };
   landmarks: Array<{ key: string; anchor: NormalizedPosition }>;
   displayRoads: DisplayRoad[];
+  buildingContext?: { acquisition: string; visibleCount: number; destinationMatch: string; buildings: import("./render/footprints.js").ProjectedBuilding[] };
   destinationBlock?: { sourceRoadIds?: string[]; outline: NormalizedPosition[]; fullyVisible: boolean };
 }
 export interface DesignIssue { code: string; target: string; message: string }
@@ -73,6 +74,28 @@ export function assessMapDesign(svg: string, canvas: { width: number; height: nu
   const essentialNames = new Set(facts.displayRoads.filter((r) => r.class === "primary" || r.class === "secondary" ||
     r.sourceIds.some((id) => facts.destinationBlock?.sourceRoadIds?.includes(id))).map((r) => r.label).filter(Boolean));
   for (const name of essentialNames) if (!labeledNames.has(name)) add("missing-street-name", "streets", `Essential street name is not visible: ${name}`);
+  if (!facts.buildingContext?.visibleCount || ["not-requested", "unavailable"].includes(facts.buildingContext.acquisition)) {
+    add("building-context-unavailable", "buildings", "Visible building context is missing. A successful empty fetch or a road-only draft cannot establish the built environment.");
+  }
+  if (facts.buildingContext?.visibleCount && facts.buildingContext.destinationMatch !== "contains-source-point") {
+    add("unresolved-destination-building", "D", "Nearby buildings are present but the destination source point does not identify one unambiguous footprint.");
+  }
+  const destinationBuilding = facts.buildingContext?.buildings.find((building) => building.destination);
+  if (destinationBuilding) {
+    const edges = destinationBuilding.polygons.flatMap((polygon) => [polygon.outer, ...polygon.holes].flatMap((ring) =>
+      ring.slice(1).map((b, i) => ({ a: ring[i], b }))));
+    const streetLabels = streetTags.filter((tag) => attr(tag, "data-label-box")).map((tag) => {
+      const [x, y, width, height] = attr(tag, "data-label-box")!.split(" ").map(Number);
+      return { key: attr(tag, "id")!, box: { x, y, width, height } };
+    });
+    for (const label of [...labels, ...streetLabels]) {
+      const { x, y, width, height } = label.box;
+      if (edges.some(({ a, b }) => clipSegment(a.x * canvas.width, a.y * canvas.height, b.x * canvas.width, b.y * canvas.height,
+        x - 2, y - 2, x + width + 2, y + height + 2))) {
+        add("label-on-building-boundary", label.key, "Label obscures the highlighted destination building outline.");
+      }
+    }
+  }
   const polygon = facts.destinationBlock?.outline;
   const blockShare = polygon ? Math.abs(polygon.reduce((n, p, i) => {
     const q = polygon[(i + 1) % polygon.length]; return n + p.x * q.y - q.x * p.y;

@@ -30,6 +30,10 @@ tests as a defense. An automated pass only permits image review; it never ends i
 - For editable vectors, deterministic output or a host without an image tool,
   follow the SVG workflow below. Preserve an explicit format/style request;
   do not silently substitute SVG for a requested generated image.
+- For a building destination in a dense city, use an image brief (usually
+  `editorial`) or the geographic SVG layout to retain building context. The
+  older diagram templates distort streets and do not overlay source footprints;
+  do not present them as a building-level urban locator.
 
 ## SVG Workflow
 
@@ -51,12 +55,18 @@ tests as a defense. An automated pass only permits image review; it never ends i
      Never substitute the first-ranked result or invent a candidate ID.
    - Start with `standard/paper` for general print use, then use the selection
      guidance in [references/quality.md](references/quality.md).
-   - Use `geocode`, `find_landmarks`, and `find_roads` only when host-side
+   - Keep the default building lookup on for urban destinations. Retain
+     `map.buildings` and `map.buildingContext` through edits: enclosing streets
+     alone do not identify a building among its neighbors.
+   - Use `geocode`, `find_landmarks`, `find_roads`, and `find_buildings` when host-side
      curation is materially better than the one-shot path.
 
 3. Inspect the rendered result.
    - Review the rendered image, not only the SVG source.
    - Apply every hard check in [references/quality.md](references/quality.md).
+   - Check that the destination sits among source-backed neighboring buildings,
+     with visible gaps and an unambiguous highlighted footprint. Missing OSM
+     coverage means unknown context, never vacant land; do not invent filler.
    - Treat a successful tool call as a draft, not proof of a usable map.
 
 4. Revise through the document.

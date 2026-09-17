@@ -2,8 +2,10 @@ import { z } from "zod";
 import { generateMap } from "./pipeline.js";
 import { searchGeocode } from "./geocode.js";
 import { findLandmarks } from "./landmarks.js";
+import { findBuildings } from "./buildings.js";
 import { findRoads } from "./roads.js";
 import {
+  FindBuildingsArgs,
   FindLandmarksArgs,
   FindRoadsArgs,
   GenerateMapArgs,
@@ -123,6 +125,11 @@ export async function dispatchTool(
       const input = FindLandmarksArgs.parse(args);
       const landmarks = await findLandmarks(input.lat, input.lon, input.radiusMeters);
       return jsonResult({ landmarks });
+    }
+
+    if (name === "find_buildings") {
+      const input = FindBuildingsArgs.parse(args);
+      return jsonResult({ buildings: await findBuildings(input.lat, input.lon, input.radiusMeters) });
     }
 
     if (name === "find_roads") {

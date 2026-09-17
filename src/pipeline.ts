@@ -1,5 +1,6 @@
 import { geocode } from "./geocode.js";
 import { findLandmarks } from "./landmarks.js";
+import { findBuildings } from "./buildings.js";
 import { findRoads } from "./roads.js";
 import { curate } from "./curate.js";
 import {
@@ -20,6 +21,8 @@ export interface GenerateMapInput extends RenderOptions {
   // Draw the road skeleton (default true). Set false to skip the extra
   // Overpass round-trip and render landmarks-only.
   roads?: boolean;
+  /** Fetch surrounding source footprints (default on with roads). */
+  buildings?: boolean;
   // Endpoints, on-disk cache, and retry budget. Defaults come from the
   // environment, so the zero-config path stays a single argument.
   upstream?: UpstreamOptions;
@@ -63,6 +66,20 @@ export async function generateMap(
           upstream,
         );
 
+  const buildingRadius = Math.min(MAX_RADIUS_METERS, Math.round(radius * ROAD_SEARCH_RADIUS_MULTIPLIER));
+  const buildingContext: NonNullable<MapLayout["buildingContext"]> = { source: "OpenStreetMap", status: "not-requested", radiusMeters: buildingRadius };
+  let buildings: NonNullable<MapLayout["buildings"]> = [];
+  if (opts.buildings ?? opts.roads !== false) {
+    try {
+      buildings = await findBuildings(geo.lat, geo.lon, buildingRadius, upstream);
+      buildingContext.status = "fetched";
+    } catch {
+      // Preserve the usable geographic draft, but never silently claim an
+      // empty city block when this additional upstream request fails.
+      buildingContext.status = "unavailable";
+    }
+  }
+
   // bbox is computed from the destination + landmarks only, NOT roads: a road
   // way can run kilometres past the area, and including it would zoom the map
   // out to uselessness. Roads simply trail off the frame edge instead.
@@ -74,7 +91,7 @@ export async function generateMap(
   const layout: MapLayout = {
     center: { lat: geo.lat, lon: geo.lon, label: opts.label ?? hereLabel(language) },
     landmarks: picked,
-    roads,
+    roads, buildings, buildingContext,
     bbox: {
       north: Math.max(...lats) + padLat,
       south: Math.min(...lats) - padLat,

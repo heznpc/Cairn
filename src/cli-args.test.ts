@@ -70,6 +70,11 @@ describe("parseCliRequest", () => {
     expect(parseCliRequest(["generate"])).toEqual({ kind: "missing-address" });
   });
 
+  it("can skip building lookup independently of roads", () => {
+    expect(parseCliRequest(["Seoul", "--no-buildings"]))
+      .toMatchObject({ kind: "generate", options: { buildings: false, roads: undefined } });
+  });
+
   it("parses a document re-render request", () => {
     expect(parseCliRequest(["render", "map.json", "-o", "map.svg"])).toEqual({
       kind: "render-document",

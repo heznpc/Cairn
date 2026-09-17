@@ -8,6 +8,7 @@ vi.mock("./geocode.js", () => ({
 vi.mock("./landmarks.js", () => ({
   findLandmarks: vi.fn(),
 }));
+vi.mock("./buildings.js", () => ({ findBuildings: vi.fn() }));
 vi.mock("./roads.js", () => ({
   findRoads: vi.fn(),
 }));
@@ -18,6 +19,7 @@ vi.mock("./pipeline.js", () => ({
 import { tools, dispatchTool } from "./handlers.js";
 import { searchGeocode } from "./geocode.js";
 import { findLandmarks } from "./landmarks.js";
+import { findBuildings } from "./buildings.js";
 import { findRoads } from "./roads.js";
 import { generateMap } from "./pipeline.js";
 import { createDiagramDocument } from "./diagram-document.js";
@@ -53,9 +55,9 @@ beforeEach(() => {
 });
 
 describe("tool registry", () => {
-  it("exposes exactly the six documented tools", () => {
+  it("exposes the documented tools", () => {
     expect(tools.map((t) => t.name).sort()).toEqual(
-      ["find_landmarks", "find_roads", "generate_map", "geocode", "render_document", "prepare_image_brief"].sort(),
+      ["find_buildings", "find_landmarks", "find_roads", "generate_map", "geocode", "render_document", "prepare_image_brief"].sort(),
     );
   });
 
@@ -565,5 +567,17 @@ describe("dispatchTool — error paths", () => {
     const result = await dispatchTool("geocode", { address: "Seoul" });
     expect(result.isError).toBe(true);
     expect(textAt(result, 0)).toContain("Nominatim down");
+  });
+});
+
+describe("find_buildings", () => {
+  it("returns source geometry through the published MCP contract", async () => {
+    const { yeoksamBuildings } = await import("../test/fixtures/yeoksam-buildings.js");
+    vi.mocked(findBuildings).mockResolvedValue(yeoksamBuildings);
+    const result = await dispatchTool("find_buildings", { lat: 37.5, lon: 127, radiusMeters: 500 });
+    expect(result.isError).toBeUndefined();
+    expect(validatorFor("find_buildings")(result.structuredContent)).toBe(true);
+    expect(findBuildings).toHaveBeenCalledWith(37.5, 127, 500);
+    expect((await dispatchTool("find_buildings", { lat: 37.5, lon: 127, radiusMeters: 5001 })).isError).toBe(true);
   });
 });

@@ -159,7 +159,7 @@ try {
   await client.connect(transport);
   const result = await client.listTools();
   const names = result.tools.map((tool) => tool.name).sort();
-  const expected = ["find_landmarks", "find_roads", "generate_map", "geocode", "prepare_image_brief", "render_document"];
+  const expected = ["find_buildings", "find_landmarks", "find_roads", "generate_map", "geocode", "prepare_image_brief", "render_document"];
   if (JSON.stringify(names) !== JSON.stringify(expected)) {
     throw new Error(\`unexpected tools: \${names.join(", ")}\`);
   }

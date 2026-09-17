@@ -59,7 +59,8 @@ OPTIONS
       --template <name>   Composition: ${RENDER_TEMPLATE_HELP} (default: standard)
       --theme <name>      Visual style: ${RENDER_THEME_HELP} (default: paper)
       --preset <name>     Compatibility alias for --template: ${RENDER_PRESET_HELP}
-      --no-roads          Skip the road skeleton (landmarks only)
+      --no-roads          Skip roads and default building fetch (landmarks only)
+      --no-buildings      Skip the source building footprint fetch
       --focus             Fisheye-emphasize the destination area (standard/compact/schematic)
       --help              Show this help
 
@@ -178,6 +179,7 @@ export function parseCliRequest(argv: string[]): CliRequest {
       template: parseEnum("--template", opts.template, isRenderTemplate, RENDER_TEMPLATES),
       theme: parseEnum("--theme", opts.theme, isRenderTheme, RENDER_THEMES),
       preset: parseEnum("--preset", opts.preset, isRenderPreset, RENDER_PRESETS),
+      buildings: opts.noBuildings === "true" ? false : undefined,
       roads: opts.noRoads === "true" ? false : undefined,
       focus: opts.focus === "true" ? true : undefined,
       upstream: parseUpstream(opts),
@@ -277,6 +279,9 @@ function parse(argv: string[]) {
         break;
       case "--theme":
         opts.theme = takeValue(a, ++i);
+        break;
+      case "--no-buildings":
+        opts.noBuildings = "true";
         break;
       case "--no-roads":
         opts.noRoads = "true";

@@ -3,7 +3,9 @@
 Use this order of importance. Never trade a higher item for a lower one.
 
 1. **Geographic legibility**: Preserve the destination block and useful arrival
-   context. When a route is supplied, preserve its continuity; do not invent
+   context. In dense urban areas, retain actual neighboring building outlines
+   and gaps so the visitor can identify the destination building within that
+   block. A large empty road-bounded polygon is insufficient. When a route is supplied, preserve its continuity; do not invent
    a route to satisfy a visual checklist.
 2. **Destination hierarchy**: Make the destination the first visual focus;
    keep its callout readable and unambiguous.
@@ -41,6 +43,13 @@ Use this order of importance. Never trade a higher item for a lower one.
   distinctive civic landmarks.
 - Preserve the streets enclosing the destination block before applying a road
   count budget. Major-road priority must not erase an essential local boundary.
+- Keep supplied building outlines and courtyard holes in the same coordinate
+  transform as roads. Emphasize the destination only when exactly one source
+  footprint contains its selected geocode point; never choose a nearby shape
+  because it looks plausible. Keep labels off that highlighted boundary.
+- If building lookup fails or returns no usable local outlines, record the
+  missing context. Fetch source data or revise the brief; do not portray blanks
+  as open land, invent parcels, or claim an entrance from a footprint.
 - Change template when composition is wrong; change theme only when visual
   tone or reproduction requirements are wrong.
 - Move a marker manually only after automatic placement visibly fails. Keep

@@ -68,6 +68,8 @@ export function applyDiagramOverrides(
         name: override?.label ?? road.name,
       }];
     }),
+    ...(map.buildings ? { buildings: structuredClone(map.buildings) } : {}),
+    ...(map.buildingContext ? { buildingContext: { ...map.buildingContext } } : {}),
     bbox: { ...map.bbox },
   };
 }
@@ -195,6 +197,8 @@ function cloneMap(map: MapLayout): MapLayout {
       tags: { ...landmark.tags },
     })),
     roads: map.roads.map(cloneRoad),
+    ...(map.buildings ? { buildings: structuredClone(map.buildings) } : {}),
+    ...(map.buildingContext ? { buildingContext: { ...map.buildingContext } } : {}),
     bbox: { ...map.bbox },
   };
 }

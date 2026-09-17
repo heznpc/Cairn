@@ -63,10 +63,22 @@ export interface Road {
   tags?: Record<string, string>;
 }
 
+export interface GeoPoint { lat: number; lon: number }
+
+/** Ground-level source footprint, not a parcel, address match or entrance. */
+export interface BuildingFootprint {
+  id: string;
+  name?: string;
+  tags: Record<string, string>;
+  polygons: Array<{ outer: GeoPoint[]; holes: GeoPoint[][] }>;
+}
+
 export interface MapLayout {
   center: { lat: number; lon: number; label: string };
   landmarks: Landmark[];
   roads: Road[];
+  buildings?: BuildingFootprint[];
+  buildingContext?: { source: "OpenStreetMap"; status: "fetched" | "unavailable" | "not-requested"; radiusMeters: number };
   bbox: { north: number; south: number; east: number; west: number };
 }
 

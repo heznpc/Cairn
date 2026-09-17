@@ -1,5 +1,6 @@
 // Original OSM ways from the reproducing document, © OpenStreetMap contributors (ODbL).
 // https://www.openstreetmap.org/#map=19/37.50081/127.03696
+import { yeoksamBuildings } from "./yeoksam-buildings.js";
 import type { MapLayout, Road } from "../../src/types.js";
 
 const sourceRoads: Array<Omit<Road, "points">> = [
@@ -19,5 +20,6 @@ export const yeoksamMap: MapLayout = {
   center: {"lat":37.5000191,"lon":127.0365483,"label":"강남파이낸스센터"},
   bbox: {"north":37.501988499999996,"south":37.4969198,"east":127.03815999999999,"west":127.03353800000001},
   landmarks: [{"id":"3404837656","name":"7번 출구","lat":37.5011885,"lon":127.0369034,"category":"station_exit","importance":0.95,"tags":{"description":"역삼역 7번출구","description:en":"Yeoksam Station gate 7","description:ja":"駅三駅 7番出口","public_transport":"entrance","railway":"subway_entrance","ref":"7"}},{"id":"6033314995","name":"역삼역","lat":37.5008221,"lon":127.03696,"category":"station","importance":1,"tags":{"addr:city":"서울특별시","addr:district":"강남구","addr:housenumber":"지하156","addr:postcode":"06236","addr:street":"테헤란로","addr:subdistrict":"역삼동","name":"역삼","name:en":"Yeoksam","name:ja":"ヨッサム(駅三)","name:ko":"역삼","name:zh":"驿三","network":"수도권 전철","network:en":"Seoul Metropolitan Subway","network:ko":"수도권 전철","network:wikidata":"Q16950","operator":"서울교통공사","operator:en":"Seoul Metro","operator:ko":"서울교통공사","operator:type":"public","operator:wikidata":"Q28699048","public_transport":"station","railway":"station","ref":"221","station":"subway","subway":"yes","wikidata":"Q488791"}},{"id":"368634331","name":"메가박스","lat":37.499705,"lon":127.034738,"category":"landmark","importance":0.85,"tags":{"amenity":"cinema","name":"메가박스","name:en":"Megabox","name:ja":"メガボックス","name:ko":"메가박스","name:ko-Latn":"Megabakseu"}},{"id":"2101252293","name":"서울대병원 강남센터","lat":37.5003623,"lon":127.0367051,"category":"hospital","importance":0.7,"tags":{"amenity":"hospital","healthcare":"hospital","name":"서울대학교병원헬스케어시스템강남센터","name:ja":"ソウル大学校病院 ヘルスケアシステム 江南センター"}},{"id":"way/472089566","name":"역삼개나리공원","lat":37.4977198,"lon":127.0361088,"category":"park","importance":0.65,"tags":{"leisure":"park","name":"역삼개나리공원"}}],
+  buildings: yeoksamBuildings,
   roads: sourceRoads.map((road) => ({ ...road, points: road.nodes!.map(({lat, lon}) => ({lat, lon})) })),
 };

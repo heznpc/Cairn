@@ -1,14 +1,15 @@
 /** A visual brief and preset-specific rejection rules, not audience research. */
 export const EDITORIAL_DESIGN = {
-  id: "visitor-composition-v3",
+  id: "urban-context-v4",
   status: "prototype-unvalidated",
   basis: [
     { kind: "reference-observation", statement: "Earlier pictogram illustrations retain block-defining side streets, recognizable symbols and prominent literal labels. Appearance references are not geographic evidence." },
     { kind: "user-preference", statement: "Pictogram-led output, editable vectors, actual street relationships and preservation of real bends." },
-    { kind: "user-feedback", statement: "Earlier drafts lost block identity, then restored roads without resolving oversized road bands, wasted space, mixed pictogram styles, small text and labels across streets. Those drafts are rejected baselines, not approved design." },
+    { kind: "user-feedback", statement: "Earlier drafts lost block identity, then restored roads without resolving oversized road bands, wasted space, mixed pictogram styles, small text and labels across streets. A later road-only revision still erased the dense built environment. Those drafts are rejected baselines, not approved design." },
     { kind: "design-hypothesis", statement: "Fit the useful block and arrival landmarks together, use one flat symbol family, reserve the accent for the destination, and keep place names beside their source icons. Use one rigid map rotation when a nearby primary street is within 30 degrees of horizontal; preserve all angles and rotate north consistently." },
   ],
   criteria: [
+    { id: "building-context", check: "For a building destination in a dense city, identify the actual building among neighboring footprints and their gaps. A road-bounded block alone is insufficient. Use only source polygons; missing coverage is unresolved, never empty land. Keep text off the highlighted building boundary." },
     { id: "destination", check: "At actual delivery size, name the first thing noticed before reading the source. Reject when the road bands or exit badge dominate the destination." },
     { id: "composition", check: "Inspect occupied and empty regions together. Reject a crowded destination/arrival cluster surrounded by unused space. Reframe the whole map without moving individual geographic anchors." },
     { id: "block-context", check: "Identify the destination's enclosing block without tracing faint lines. Keep its source-backed boundary and real bends visible. A closed graph alone is not visual success." },

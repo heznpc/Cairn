@@ -18,7 +18,7 @@ export const IMAGE_STYLE_PROFILES: Record<ImageStyle, {
       "Do not replace an accepted illustrated appearance with tiny generic glyphs, a large poster heading or a two-road cross. " +
       "Block context describes street enclosure, never a building footprint or access permission. " +
       "Keep the supplied display-road paths and geographic anchors, including actual bends. " +
-      "Do not add lanes, decorative junctions, routes, footprints or unsupported transit-line colors. " +
+      "Render supplied building footprints as subdued context and distinguish the matched destination outline. Do not invent buildings, parcels, lanes, junctions, routes or transit-line colors. " +
       "Respect facts.orientation for the whole scene and north arrow. Review the actual-size image against designContract; designReview never confers visual approval.",
   },
   schematic: {

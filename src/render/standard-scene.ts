@@ -1,3 +1,4 @@
+import { projectBuildings, type ProjectedBuilding } from "./footprints.js";
 import type {
   MapLayout,
   NormalizedPosition,
@@ -81,6 +82,7 @@ export interface StandardMapScene {
   theme: ThemeSpec;
   renderLayout: RenderLayoutMode;
   roads: StandardSceneRoad[];
+  buildings: ProjectedBuilding[];
   roadLabels: StandardSceneRoadLabel[];
   landmarks: StandardSceneLandmark[];
   approach: {
@@ -328,6 +330,7 @@ export function buildStandardMapScene(
     theme,
     renderLayout,
     roads: sceneRoads,
+    buildings: renderLayout === "geographic" ? projectBuildings(layout.buildings ?? [], layout.center, project, { width, height }).buildings : [],
     roadLabels: roadLabelEntries,
     landmarks: sceneLandmarks,
     approach: approachLandmark
