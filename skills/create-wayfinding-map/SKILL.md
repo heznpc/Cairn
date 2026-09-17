@@ -17,6 +17,9 @@ observations, explicit user preferences and untested design choices using the
 design-brief section of [references/image-workflow.md](references/image-workflow.md).
 Carry accepted choices across revisions. Render and compare against the previous
 artifact; successful generation and geometry checks do not establish visual quality.
+Read the visual rejection rubric in the image workflow before accepting a revised
+map. Critique it as a first-time visitor, without citing the implementation or
+tests as a defense. An automated pass only permits image review; it never ends it.
 
 - For image styling, pictogram illustration, or comparisons of visual styles,
   use `prepare_image_brief` after resolving the document. Read
@@ -71,8 +74,9 @@ artifact; successful generation and geometry checks do not establish visual qual
 5. Reinspect after every structural edit.
    - Recheck route continuity, marker-road clearance, label collisions,
      destination hierarchy, and attribution.
-   - Stop when the map is readable and purpose-fit. Do not churn styles after
-     the hard checks pass unless the user requested visual exploration.
+   - Stop when both technical checks and actual-size visual review pass. A
+     technical pass cannot override a visible composition failure. Fix the
+     relevant rule and render again; do not ask the user to perform routine QA.
 
 6. Deliver both surfaces when future edits are plausible.
    - Return or write SVG for future editing, PNG for bitmap use, or PDF for

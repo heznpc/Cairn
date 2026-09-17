@@ -56,23 +56,21 @@ export function pictogram(kind: PictogramKind, theme: RenderTheme, destination =
   }
 }
 
-/** One family of flat symbols. Their center remains the geographic anchor. */
-export function editorialPictogram(kind: PictogramKind, accent: string, ink: string, exitRef?: string, theme: RenderTheme = "paper"): string {
-  const color = theme === "mono" ? ink : accent;
-  const shapes: Partial<Record<PictogramKind, string>> = {
-    building: `<ellipse cy="27" rx="32" ry="5" fill="${color}" opacity=".13"/>
-      <path d="M-29,25 V-5 H-16 V25 M15,25 V-7 H28 V25" fill="${color}"/>
-      <path d="M-15,25 V-21 L0,-31 L15,-21 V25 Z" fill="${color}"/>
-      <path d="M0,-31 L15,-21 V25 H0 Z" fill="${ink}" opacity=".13"/>
-      <path d="M-10,-16 L-4,-20 V-11 L-10,-8 Z M5,-20 L11,-16 V-8 L5,-11 Z M-10,-3 L-4,-6 V3 L-10,5 Z M5,-6 L11,-3 V5 L5,3 Z M-10,10 L-4,8 V18 L-10,19 Z M5,8 L11,10 V19 L5,18 Z" fill="white"/>
-      <path d="M-23,1 V7 M-23,13 V19 M21,0 V7 M21,13 V19" stroke="white" stroke-width="3"/>
-      <path d="M-32,26 H31" stroke="${color}" stroke-width="2.5"/>`,
-    hospital: `<circle r="20" fill="white" stroke="${ink}" stroke-width="1.5"/><path d="M-5,-13 H5 V-5 H13 V5 H5 V13 H-5 V5 H-13 V-5 H-5 Z" fill="${theme === 'mono' ? ink : '#d35c4d'}"/>`,
-    cinema: `<circle r="23" fill="${ink}"/><circle cy="-12" r="4.7" fill="white"/><circle cx="11.4" cy="-3.7" r="4.7" fill="white"/><circle cx="7" cy="9.7" r="4.7" fill="white"/><circle cx="-7" cy="9.7" r="4.7" fill="white"/><circle cx="-11.4" cy="-3.7" r="4.7" fill="white"/>`,
-    station: `<circle r="24" fill="${ink}" stroke="white" stroke-width="3"/><rect x="-11" y="-16" width="22" height="28" rx="5" fill="white"/><rect x="-8" y="-11" width="16" height="10" rx="2" fill="${ink}"/><circle cx="-6" cy="6" r="2" fill="${ink}"/><circle cx="6" cy="6" r="2" fill="${ink}"/><path d="M-6,12 L-10,18 M6,12 L10,18" stroke="white" stroke-width="2.5"/>`,
+/** One flat silhouette family. Accent and larger scale identify the destination. */
+export function editorialPictogram(kind: PictogramKind, accent: string, ink: string, exitRef?: string, theme: RenderTheme = "paper", destination = false): string {
+  const color = destination && theme !== "mono" ? accent : ink;
+  const symbols: Partial<Record<PictogramKind, string>> = {
+    building: `<path d="M-23,23 V-6 H-12 V23 M-12,23 V-25 H12 V23 M12,23 V-13 H23 V23 Z" fill="${color}"/>
+      <path d="M-6,-18 H-2 M4,-18 H8 M-6,-9 H-2 M4,-9 H8 M-6,0 H-2 M4,0 H8 M-6,9 H-2 M4,9 H8 M-18,0 V5 M-18,11 V16 M18,-6 V0 M18,7 V13" stroke="white" stroke-width="3"/>
+      <path d="M-4,24 V17 H4 V24" fill="white"/>`,
+    hospital: `<path d="M-5,-15 H5 V-5 H15 V5 H5 V15 H-5 V5 H-15 V-5 H-5 Z" fill="white"/>`,
+    cinema: `<circle r="16" fill="white"/><g fill="${color}"><circle cy="-9" r="3.7"/><circle cx="8.6" cy="-2.8" r="3.7"/><circle cx="5.3" cy="7.3" r="3.7"/><circle cx="-5.3" cy="7.3" r="3.7"/><circle cx="-8.6" cy="-2.8" r="3.7"/></g>`,
+    station: `<rect x="-11" y="-16" width="22" height="28" rx="5" fill="white"/><rect x="-8" y="-11" width="16" height="10" rx="2" fill="${color}"/><circle cx="-6" cy="6" r="2" fill="${color}"/><circle cx="6" cy="6" r="2" fill="${color}"/><path d="M-6,12 L-10,18 M6,12 L10,18" stroke="white" stroke-width="2.5"/>`,
     station_exit: exitRef && /^[\p{L}\p{N}-]{1,4}$/u.test(exitRef)
-      ? `<circle r="21" fill="${theme === 'mono' ? 'white' : '#f2cd61'}" stroke="${ink}" stroke-width="2"/><text y="1" dominant-baseline="middle" text-anchor="middle" font-size="${exitRef.length > 2 ? 16 : 25}" font-weight="700" fill="${ink}">${escapeXml(exitRef)}</text>`
-      : pictogram("station_exit", theme),
+      ? `<text y="1" dominant-baseline="middle" text-anchor="middle" font-size="${exitRef.length > 2 ? 15 : 26}" font-weight="700" fill="white">${escapeXml(exitRef)}</text>`
+      : `<path d="M-4,-12 H-12 V12 H-4 M-4,0 H12 M6,-6 L12,0 L6,6" fill="none" stroke="white" stroke-width="3"/>`,
   };
-  return `<g data-pictogram="${kind}" stroke-linejoin="round">${shapes[kind] ?? pictogram(kind, theme, false, ink)}</g>`;
+  const building = kind === "building";
+  const symbol = symbols[kind] ?? `<g transform="scale(1.5)">${landmarkIcon(kind === "cinema" ? "landmark" : kind, 0, 0, "white")}</g>`;
+  return `<g data-pictogram="${kind}" data-icon-family="flat-signage" stroke-linejoin="round" stroke-linecap="round">${building ? `<g transform="scale(${destination ? 1.5 : .85})">${symbol}</g>` : `<circle r="24" fill="${color}" stroke="white" stroke-width="3"/>${symbol}`}</g>`;
 }

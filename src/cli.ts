@@ -68,7 +68,8 @@ async function main() {
     const json = `${JSON.stringify(brief, null, 2)}\n`;
     if (request.output) writeFileSync(request.output, json, "utf8");
     else process.stdout.write(json);
-    console.error(`✓ ${brief.style} road blueprint and deterministic map prepared; generative restyles require separate visual review`);
+    console.error(`${brief.style} draft prepared: ${brief.designReview?.status ?? "needs-visual-review"}`);
+    for (const issue of brief.designReview?.issues ?? []) console.error(`  ${issue.code}: ${issue.message}`);
     return;
   }
 

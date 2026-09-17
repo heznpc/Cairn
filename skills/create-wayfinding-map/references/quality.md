@@ -2,8 +2,9 @@
 
 Use this order of importance. Never trade a higher item for a lower one.
 
-1. **Route legibility**: Preserve a continuous road or approach cue from the
-   strongest start landmark toward the destination.
+1. **Geographic legibility**: Preserve the destination block and useful arrival
+   context. When a route is supplied, preserve its continuity; do not invent
+   a route to satisfy a visual checklist.
 2. **Destination hierarchy**: Make the destination the first visual focus;
    keep its callout readable and unambiguous.
 3. **Marker clearance**: Keep marker discs and opaque labels out of protected
@@ -38,7 +39,8 @@ Use this order of importance. Never trade a higher item for a lower one.
 
 - Hide low-importance shops before transit, gates, schools, hospitals, or
   distinctive civic landmarks.
-- Preserve a named primary road before unnamed tertiary or residential roads.
+- Preserve the streets enclosing the destination block before applying a road
+  count budget. Major-road priority must not erase an essential local boundary.
 - Change template when composition is wrong; change theme only when visual
   tone or reproduction requirements are wrong.
 - Move a marker manually only after automatic placement visibly fails. Keep

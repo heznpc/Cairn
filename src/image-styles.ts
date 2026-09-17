@@ -13,13 +13,13 @@ export const IMAGE_STYLE_PROFILES: Record<ImageStyle, {
     roadGroups: 6,
     landmarkLimit: 4,
     instructions: "Preserve the streets enclosing the destination block and the surrounding orientation streets. " +
-      "Use quiet gray road bands on warm white, recognizable colored pictograms and clear full-name labels. " +
-      "Keep the destination building prominent, literal exit numbers in source-backed badges, and secondary symbols restrained. " +
+      "Use quiet gray road bands on warm white, one flat pictogram family and clear full-name labels. Reserve accent color for the destination. " +
+      "Keep the destination building and name prominent, literal exit numbers in source-backed badges, and secondary symbols restrained. Keep names on the same street side as their icons. " +
       "Do not replace an accepted illustrated appearance with tiny generic glyphs, a large poster heading or a two-road cross. " +
       "Block context describes street enclosure, never a building footprint or access permission. " +
       "Keep the supplied display-road paths and geographic anchors, including actual bends. " +
       "Do not add lanes, decorative junctions, routes, footprints or unsupported transit-line colors. " +
-      "Review the rendered result against designContract; its status is a prototype, not validated audience preference.",
+      "Respect facts.orientation for the whole scene and north arrow. Review the actual-size image against designContract; designReview never confers visual approval.",
   },
   schematic: {
     purpose: "Compact Korean yakdo for business cards and direction inserts",

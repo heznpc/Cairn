@@ -81,7 +81,7 @@ export async function dispatchTool(
         content: [
           { type: "text", text: brief.prompt },
           { type: "image", mimeType: "image/png", data: png.toString("base64") },
-          { type: "text", text: "Finished code-rendered map. This uses the blueprint road paths without image-model redrawing." },
+          { type: "text", text: `Code-rendered draft; ${brief.designReview?.status ?? "needs-visual-review"}. This uses the blueprint road paths without image-model redrawing. Inspect the delivered image before claiming design quality.` },
           { type: "image", mimeType: "image/png", data: mapPng.toString("base64") },
         ],
         structuredContent: brief,

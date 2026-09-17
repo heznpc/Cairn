@@ -28,12 +28,14 @@ const images = (baseline ? ["editorial"] : ["pictorial", "editorial"]).map((styl
     writeFileSync(`${output}/blueprint.png`, encodeMapArtifact(brief.referenceSvg, brief.canvas, "png"));
     writeFileSync(`${output}/delivery-600.png`, encodeMapArtifact(brief.mapSvg, { width: 600, height: 600 * brief.canvas.height / brief.canvas.width }, "png"));
     writeFileSync(`${output}/review.json`, `${JSON.stringify({
-      contractId: brief.designContract.id, status: "needs-visual-review",
+      contractId: brief.designContract.id, status: brief.designReview.status,
+      automatic: brief.designReview,
+      artifact: { file: "editorial.png", sha256: createHash("sha256").update(png).digest("hex") },
       comparison: "comparison.png", deliverySize: "delivery-600.png", source: "document.json",
       baseline: { kind: baseline ? "provided-image-appearance-reference" : "current-code-renderer-not-historical",
         file: baseline ? "baseline.png" : "pictorial.png",
         ...(baseline ? { sha256: createHash("sha256").update(baseline).digest("hex") } : {}) },
-      criteria: brief.designContract.criteria.map((criterion) => ({ ...criterion, status: "pending", observation: "" })),
+      criteria: brief.designContract.criteria.map((criterion) => ({ ...criterion, status: "pending", observation: "", visibleEvidence: "" })),
       audiencePreference: "unvalidated",
     }, null, 2)}\n`);
   }
@@ -49,7 +51,7 @@ const height = Math.ceil(tileHeight + 110);
 const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">
 <rect width="100%" height="100%" fill="#f4f4f2"/>
 ${images.map(({ png, canvas }, i) => `<g transform="translate(${32 + i * 784} 0)">
-<text x="0" y="40" font-family="'Apple SD Gothic Neo',sans-serif" font-size="21" font-weight="700" fill="#343633">${i ? "이번 수정 · 벡터 출력" : baseline ? "이전 이미지 · 표현 참고" : "현재 코드 출력 · pictorial (과거 이미지 아님)"}</text>
+<text x="0" y="40" font-family="'Apple SD Gothic Neo',sans-serif" font-size="21" font-weight="700" fill="#343633">${i ? "이번 수정 · 벡터 출력" : baseline ? "제공된 이전 이미지" : "현재 코드 출력 · pictorial (과거 이미지 아님)"}</text>
 <image x="0" y="65" width="${tileWidth}" height="${tileWidth * canvas.height / canvas.width}" href="data:image/png;base64,${png.toString("base64")}"/></g>`).join("")}</svg>`;
 writeFileSync(`${output}/comparison.png`, encodeMapArtifact(svg, { width, height }, "png"));
 console.log(output);

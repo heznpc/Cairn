@@ -22,7 +22,7 @@ Most maps are too accurate to be useful. Korean 약도 (yakdo) and Japanese 略�
 ## Currently implemented
 
 - **6 MCP tools** over stdio: `generate_map` (address → SVG + editable document), `render_document` (patch + re-render), `prepare_image_brief` (document → deterministic pictogram map, road blueprint and optional host-image prompt), `geocode`, `find_landmarks`, and `find_roads`.
-- **Pictogram maps with reviewable design criteria.** `pictorial` is the default; the `editorial` prototype protects the destination’s enclosing streets and uses colored, detailed pictograms. `schematic` and `neighborhood` remain available. Cairn renders the road paths, pictograms and literal labels in code. Optional host-generated restyles require separate visual review.
+- **Pictogram maps with reviewable design criteria.** `pictorial` is the default; the `editorial` prototype protects the destination’s enclosing streets and uses a coherent flat pictogram family with a destination accent. `schematic` and `neighborhood` remain available. Cairn renders the road paths, pictograms and literal labels in code. Optional host-generated restyles require separate visual review.
 - **Chat-first wayfinding skill** in [`skills/create-wayfinding-map`](skills/create-wayfinding-map/SKILL.md) — teaches compatible AI hosts to generate, visually inspect, patch, and re-render a map instead of accepting the first SVG draft.
 - **Zero-API-key path.** OSM Nominatim + Overpass only. No Mapbox / Google keys, no account, no quota signup.
 - **Works anywhere OSM does.** Place names come back exactly as OpenStreetMap has them, because a 약도 should read like the signs around it — `Rue de Rivoli` stays French. Only the labels cairn *generates* take a language, and that follows the destination's country: Seoul renders `여기` / `3번 출구`, Berlin `Hier` / `Ausgang 3`, Stockholm `Här`. Override with `--language`. The projection applies a cos(latitude) correction and a single uniform scale, so a Stockholm map keeps its true proportions instead of being stretched horizontally. POI lookups cover tram stops, ferry piers, supermarkets, and pharmacies, and query ways and relations so the polygon-mapped parks, hospitals, and schools common outside East Asia are visible.
@@ -241,7 +241,7 @@ are joined by OSM node identity. In schematic, pictorial and editorial styles, s
 straight, overlapping, opposite one-way carriageways can share one centerline;
 real bends and staggered junctions remain. `sourceReferenceSvg` retains the
 selected source geometry for comparison. In MCP, the first PNG is the blueprint
-and the second is the finished map (`mapSvg` in structured output).
+and the second is the map draft (`mapSvg` in structured output).
 
 For an optional generative restyle, pass `brief.json`'s `prompt` and
 `reference.png` to the host image tool and inspect its output with the returned
@@ -249,29 +249,39 @@ checks. The CLI does not call a model.
 
 | Image style | Information design |
 |---|---|
-| `editorial` | Block-preserving guide: protected enclosing streets, colored pictograms, full destination label; prototype with a recorded design contract |
+| `editorial` | Block-preserving guide: protected enclosing streets, coherent pictograms, destination type hierarchy; prototype with a recorded design contract |
 | `schematic` | Few roads and landmarks, compact line icons, simple road bands |
 | `neighborhood` | More local streets, geographic angles and neighborhood context |
 | `pictorial` (default) | Recognizable category icons with a simplified road skeleton |
 
-`editorial` returns a versioned `designContract` separating reference observations,
-user preferences and untested design hypotheses. Its tokens drive the renderer;
-its criteria guide visual review. It starts with four landmarks and six road
-groups, then protects the entire source-node street cycle enclosing the destination,
-even when that exceeds the road budget. The viewport includes this boundary.
-Missing or clipped block context is reported instead of inventing closing roads.
-This is street enclosure, not building-footprint or access data. For a visual
-comparison, supply the actual earlier PNG; it remains an appearance reference,
-not a new source of geographic facts:
+`editorial` returns a versioned `designContract` and `designReview`. The
+600 px visitor-map preset has measurable rejection checks for small text, weak
+destination type hierarchy, a small or missing focus block, label collisions
+and names across streets from their icons. `blocked` requests revision;
+`needs-visual-review` never means aesthetic approval. The actual previously
+rejected SVG is a regression fixture.
+
+The renderer fits the useful block and arrival context with one uniform scale
+and, for a nearby main street within 30 degrees of horizontal, one rigid rotation.
+The north arrow follows that rotation. All actual bends and source anchors remain.
+It protects enclosing streets beyond the road budget, reserves accent color for
+the destination, and keeps place labels on their icon's side of the street.
+This is street enclosure, not building-footprint or access data.
+
+Compare with the actual prior PNG and review the output at delivery size:
 
 ```bash
 npm run build
 node scripts/compare-map-design.mjs office.json tmp/comparison prior-image.png
+# After inspecting the images and recording each visual finding:
+node scripts/review-map-design.mjs tmp/comparison/review.json
 ```
 
-The comparison records the baseline image hash. Without a supplied PNG, its
-left panel is explicitly labeled as the current pictorial code output, not a
-historical image. Audience preference is still unvalidated.
+The comparison records baseline and output hashes. The review check rejects
+measured failures, missing visual findings, failed criteria and stale pixels;
+it cannot judge aesthetics on the reviewer's behalf. Without a prior PNG, the
+baseline is explicitly labeled as current code output, not a historical image.
+Audience preference and general multi-location design quality remain unvalidated.
 
 Image styles differ from SVG `template`. They use the document's `theme`
 (`paper`, `mono`, `civic`, `invitation`) and output aspect ratio. Change names,

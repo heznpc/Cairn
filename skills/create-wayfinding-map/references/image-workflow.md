@@ -8,18 +8,45 @@ of available formats, not population preference. Record the intended delivery
 size and what information the reader must locate. Do not turn one user's choice
 into a universal aesthetic rule.
 
-`editorial` preserves the streets enclosing the destination before simplifying
-context. It starts with six street groups and four landmarks; a source-node
-street cycle around the destination is protected even if the road budget would
-omit an edge. The viewport includes that boundary. Missing or clipped enclosure
-is reported, never repaired with invented streets. Its colored pictograms and
-full-name destination label retain the earlier illustrated direction. Street
-faces are not building footprints or verified access.
+`editorial` preserves the destination's enclosing streets before simplifying
+context. Six street groups and four landmarks are a starting budget; the
+source-node enclosure is protected. The whole scene can rotate up to 30 degrees
+to organize a nearby main street, with one uniform scale and a matching north
+arrow. Real bends and all road/place relationships remain intact.
 
-The `designContract` separates evidence, user feedback and design hypotheses.
-Version 1 was rejected for losing block identity and using a weak intermediate
-code image as its historical baseline. Version 2 carries that correction into
-selection, viewport and layout rules. Its prototype status is not a visual pass.
+The `designContract` records evidence, feedback and hypotheses. The current
+600 px visitor-map preset uses a flat symbol family, destination-only accent,
+stronger destination type, horizontal street names and adjacent same-side place
+labels. These choices are preset-specific, not universal rules for all maps.
+
+## Reject a bad composition before delivery
+
+Review the exported PNG without reading the implementation or the test results.
+Write what a first-time visitor sees, including the region or object supporting
+each finding. Use the actual earlier artifact; a rejected draft is not an
+approved reference. Earlier drafts failed even though topology tests passed.
+
+| Reject when | Change the cause |
+|---|---|
+| Road bands or exit badges attract attention before the destination | Adjust road weight, type hierarchy and accent allocation |
+| The useful cluster is crowded while large parts of the canvas are unused | Reframe the block and arrival context together; preserve one scale/rotation |
+| A closed block exists in data but its boundary is visually weak | Retain enclosing streets and give them readable weight |
+| Icon containers, perspective, silhouette weight and colors look unrelated | Apply one coherent symbol family; do not just add decorative detail |
+| Names need zooming, head-tilting, or compete at the same size | Revise type hierarchy and horizontal label placement at actual output size |
+| A name sits across a street or needs a long leader to find its icon | Recompose its same-side label space; do not move its geographic anchor |
+
+`designReview` reports measured failures in the actual SVG. `blocked` means
+revise the draft; `needs-visual-review` means only that automated failures were
+not found. It never reports aesthetic success. Missing geographic evidence
+stays explicit rather than being repaired with invented streets. All output
+styles still need this visual critique even when they lack automated metrics.
+
+For each criterion record `pass` or `fail`, an observation, and `visibleEvidence`
+identifying the relevant objects/region in the rendered image. A failed criterion
+requires revision of the responsible selection/composition/type/icon rule and
+rerendering. If the artifact changes, its earlier review expires. Do not hide a
+failed criterion behind test counts or ask the user to accept a technically
+valid draft as finished design. No extra user approval step is implied.
 
 This direction draws on the user-supplied Korean commercial-map examples and
 the user's request for pictograms and editable vectors. Commercial services
@@ -41,8 +68,12 @@ node scripts/compare-map-design.mjs office.json tmp/comparison prior-image.png
 
 This produces the revised editable SVG, PNG, brief, source document, a
 600-pixel review image, a side-by-side comparison and a pending `review.json`.
-Inspect the artifacts and fill the observations; do not infer a pass from file
-creation. The supplied prior PNG is preserved and its hash recorded. A previously
+Inspect the artifacts and fill the observations and visible evidence. The
+manifest records automated failures and the exact PNG hash. Check the completed
+record with `node scripts/review-map-design.mjs tmp/comparison/review.json`;
+missing reviews, failed criteria, measured failures or changed pixels reject it.
+This checks the review record, not whether its visual judgment is correct.
+The supplied prior PNG is preserved and its hash recorded. A previously
 liked generated image guides appearance only; road facts still come from the
 document. Without a prior PNG, the left panel is labeled as a current code sample,
 never the original. Preserve past outputs in separate revision directories.
@@ -52,7 +83,7 @@ No image model is called.
 
 | Style | Use when | Keep / simplify |
 |---|---|---|
-| `editorial` | A pictogram guide where readers must recognize the destination’s block | Protect the enclosing streets and useful local context, keep recognizable colored symbols, and compare with the actual earlier image |
+| `editorial` | A pictogram guide where readers must recognize the destination’s block | Protect the enclosing streets and useful local context, use a coherent symbol family and a clear destination hierarchy, and compare with the actual earlier image |
 | `schematic` | Business cards, direction inserts, Korean 약도 | A few essential streets and landmarks; compact line icons; preserve display paths, road-side relationships and intersection order |
 | `neighborhood` | Visitors need surrounding streets and geographic context | More local streets and POIs; keep orientation, angles and relative distances |
 | `pictorial` | Venue or event visitors benefit from recognizable symbols | A readable street skeleton with a consistent family of larger landmark pictograms |
@@ -92,12 +123,12 @@ user asks to compare. Colors remain independent: use the document's existing
    `displayNodes` records the resulting source-node positions. Raw source roads
    and node identities remain available in `facts` and `sourceReferenceSvg`.
 
-## Deliver the code-rendered map
+## Review the code-rendered draft
 
 Inspect `mapSvg` or the second PNG. It uses exactly the blueprint's road paths,
 with geographic pictograms and literal labels rendered in code. Use this output
 when continuous street geometry must survive into the delivered SVG/PNG/PDF.
-Check label collisions and icon placement before delivery. This render is
+Apply the rejection rubric above at actual delivery size before delivery. This render is
 reproducible; it does not call an image model. It does not verify pedestrian
 access or entrance usability.
 
