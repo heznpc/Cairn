@@ -109,7 +109,7 @@ export function prepareImageBrief(input: DiagramDocument, style: ImageStyle = "s
     throw new Error("Destination or landmark is outside the reference bounds; expand the document bbox before preparing an image brief.");
   }
   const sourceReferenceSvg = referenceMap(canvas, facts);
-  const referenceSvg = referenceMap(canvas, facts, display.roads);
+  const referenceSvg = referenceMap(canvas, facts, display.roads, style);
   const mapSvg = renderBriefMap(canvas, display.roads, [destination, ...places], document.render.theme, style);
   const prompt = [
     "Create a wayfinding map from the attached cairn geographic reference and the source facts below.",
@@ -218,9 +218,9 @@ function selectRoads(roads: Road[], center: { lat: number; lon: number }, budget
   ).slice(0, budget).flatMap(([, group]) => group);
 }
 
-function referenceMap(canvas: ImageBriefCanvas, facts: ReferenceFacts, displayRoads?: DisplayRoad[]): string {
+function referenceMap(canvas: ImageBriefCanvas, facts: ReferenceFacts, displayRoads?: DisplayRoad[], style: ImageStyle = "pictorial"): string {
   const px = (p: { x: number; y: number }) => [p.x * canvas.width, p.y * canvas.height];
-  const paths = displayRoads ? displayRoadPaths(displayRoads, canvas) + displayRoads.map((road) => {
+  const paths = displayRoads ? displayRoadPaths(displayRoads, canvas, "#adb3b8", style) + displayRoads.map((road) => {
     const a = road.points[0], b = road.points[road.points.length - 1];
     const [x, y] = px({ x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 });
     return `<text x="${x}" y="${y - 20}" font-size="14">${road.key}</text>`;
