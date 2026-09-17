@@ -9,6 +9,7 @@ import { buildDisplayRoads, type DisplayRoad } from "./render/display-roads.js";
 import { displayRoadPaths, renderBriefMap } from "./render/brief-map.js";
 import { pictogramKind } from "./render/pictograms.js";
 import { EDITORIAL_DESIGN, editorialFrame } from "./design-contract.js";
+import { destinationBlock } from "./block-context.js";
 import type { DiagramDocument, Road, RenderTheme } from "./types.js";
 
 const THEME_DIRECTIONS: Record<RenderTheme, string> = {
@@ -46,14 +47,19 @@ export function prepareImageBrief(input: DiagramDocument, style: ImageStyle = "p
     Number(b.id === startId) - Number(a.id === startId) || b.importance - a.importance || a.id.localeCompare(b.id),
   ).slice(0, profile.landmarkLimit);
   const internalConnectors = intraStreetConnectors(map.roads);
-  const roads = selectRoads(map.roads.filter((road) => {
+  const eligibleRoads = map.roads.filter((road) => {
     if (internalConnectors.has(road.id)) return false;
     const points = road.nodes?.length ? road.nodes : road.points;
     return points.some((p, i) => i > 0 && clipSegment(
       points[i - 1].lon, points[i - 1].lat, p.lon, p.lat,
       map.bbox.west, map.bbox.south, map.bbox.east, map.bbox.north,
     ));
-  }), map.center, profile.roadGroups);
+  });
+  const block = style === "editorial" ? destinationBlock(eligibleRoads, map.center) : undefined;
+  const chosen = selectRoads(eligibleRoads, map.center, profile.roadGroups);
+  // A style budget may remove decoration, never an evidenced block boundary.
+  const protectedNames = new Set(eligibleRoads.filter((r) => block?.sourceRoadIds.includes(r.id)).map((r) => r.name).filter(Boolean));
+  const roads = [...chosen, ...eligibleRoads.filter((r) => !chosen.includes(r) && (block?.sourceRoadIds.includes(r.id) || (r.name && protectedNames.has(r.name))))];
   // A consistent reference scale across styles; no decorative marker offsets or fisheye.
   const canvas = {
     width: 1200,
@@ -62,7 +68,7 @@ export function prepareImageBrief(input: DiagramDocument, style: ImageStyle = "p
   const frame = style === "editorial" ? editorialFrame(canvas) : { x: 0, y: 0, ...canvas };
   // Fit the curated destination/landmark envelope, using one scale for both
   // axes. Cropping changes the composition, never road angles or topology.
-  const selected = [map.center, ...landmarks];
+  const selected = [map.center, ...landmarks, ...(block?.points ?? [])];
   const latPad = EDITORIAL_DESIGN.tokens.focusPaddingMeters / 111_320;
   const lonPad = latPad / Math.max(.01, Math.cos(map.center.lat * Math.PI / 180));
   const viewport = style === "editorial" && landmarks.length ? {
@@ -85,6 +91,7 @@ export function prepareImageBrief(input: DiagramDocument, style: ImageStyle = "p
   const places = landmarks.map((item, index) => ({
     key: `L${index + 1}`, sourceId: item.id, label: item.name, category: item.category,
     pictogram: pictogramKind(item.category, item.tags),
+    ...(item.category === "station_exit" && item.tags.ref ? { exitRef: item.tags.ref } : {}),
     lat: item.lat, lon: item.lon, anchor: anchor(item.lat, item.lon),
   }));
   const streets = roads.map((road, index) => ({
@@ -108,16 +115,21 @@ export function prepareImageBrief(input: DiagramDocument, style: ImageStyle = "p
   const centerPixel = project(map.center.lat, map.center.lon);
   const metrePixel = project(map.center.lat + 1 / 111_320, map.center.lon);
   const display = buildDisplayRoads(roads, project, canvas, Math.abs(metrePixel[1] - centerPixel[1]), style !== "neighborhood");
+  const blockContext = block ? { ...block, outline: block.points.map((p) => anchor(p.lat, p.lon)),
+    fullyVisible: block.points.every((p) => p.lat >= viewport.south && p.lat <= viewport.north && p.lon >= viewport.west && p.lon <= viewport.east) } : undefined;
   const facts = { destination, landmarks: places, roads: streets, sharedNodes,
     displayRoads: display.roads, displayNodes: display.nodes,
     roadContinuities: roadContinuities(roads, anchor),
     roadRelations: roadRelations(roads, map.center, places),
+    ...(blockContext ? { destinationBlock: blockContext } : {}),
     requestedStart: places.find((place) => place.sourceId === startId)?.key ?? null };
   const warnings = [
     "Selected OSM-derived data, not a complete survey. Current access and actual entrance locations are unverified.",
     "No building footprints or verified walking route are supplied. Shared nodes describe topology, not permission to pass.",
   ];
   if (roads.length === 0) warnings.push("No roads available: produce a landmark locator only; do not invent a street skeleton.");
+  if (style === "editorial" && !block) warnings.push("No closed source-node street boundary found around the destination; block readability is unverified. Never invent closing streets.");
+  if (blockContext && !blockContext.fullyVisible) warnings.push("The enclosing street boundary exceeds the supplied map bounds; expand the document bbox to show the complete block.");
   if (roads.some((road) => !road.nodes?.length)) warnings.push("Some roads lack node identities: their crossing connectivity is unknown.");
   if (internalConnectors.size) warnings.push(`${internalConnectors.size} intra-street vehicle connectors omitted from the illustration; this does not establish pedestrian access.`);
   if (map.landmarks.length > landmarks.length) warnings.push(`${map.landmarks.length - landmarks.length} lower-priority landmarks omitted for this style.`);
@@ -127,7 +139,7 @@ export function prepareImageBrief(input: DiagramDocument, style: ImageStyle = "p
   }
   const sourceReferenceSvg = referenceMap(canvas, facts);
   const referenceSvg = referenceMap(canvas, facts, display.roads, style);
-  const mapSvg = renderBriefMap(canvas, display.roads, [destination, ...places], document.render.theme, style);
+  const mapSvg = renderBriefMap(canvas, display.roads, [destination, ...places], document.render.theme, style, facts.destinationBlock?.outline);
   const prompt = [
     "Create a wayfinding map from the attached cairn geographic reference and the source facts below.",
     `Style: ${style}. Purpose: ${profile.purpose}.`, profile.instructions,

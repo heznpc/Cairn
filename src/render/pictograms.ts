@@ -1,5 +1,6 @@
 import type { LandmarkCategory, RenderTheme } from "../types.js";
 import { landmarkIcon } from "./icons.js";
+import { escapeXml } from "./xml.js";
 
 export type PictogramKind = LandmarkCategory | "cinema";
 
@@ -56,13 +57,22 @@ export function pictogram(kind: PictogramKind, theme: RenderTheme, destination =
 }
 
 /** One family of flat symbols. Their center remains the geographic anchor. */
-export function editorialPictogram(kind: PictogramKind, color: string, ink: string): string {
+export function editorialPictogram(kind: PictogramKind, accent: string, ink: string, exitRef?: string, theme: RenderTheme = "paper"): string {
+  const color = theme === "mono" ? ink : accent;
   const shapes: Partial<Record<PictogramKind, string>> = {
-    building: `<path d="M-15,19 V-20 H9 V19 Z M9,-7 H19 V19 H9 Z" fill="${color}"/><path d="M-9,-13 H-4 M1,-13 H5 M-9,-5 H-4 M1,-5 H5 M-9,3 H-4 M1,3 H5 M-9,11 H-4 M1,11 H5" stroke="white" stroke-width="3"/>`,
-    hospital: `<path d="M-6,-18 H6 V-6 H18 V6 H6 V18 H-6 V6 H-18 V-6 H-6 Z" fill="${color}"/>`,
-    cinema: `<rect x="-19" y="-12" width="38" height="29" rx="2" fill="${color}"/><path d="M-19,-15 L17,-22 L19,-14 L-17,-7 Z" fill="${color}"/><path d="M-10,-17 L-6,-10 M1,-19 L5,-12 M11,-21 L15,-14" stroke="white" stroke-width="3"/><path d="M-5,-3 L7,3 L-5,10 Z" fill="white"/>`,
-    park: `<path d="M-9,6 V20 M12,8 V20" stroke="${color}" stroke-width="3"/><path d="M-9,-21 C-24,-15 -25,7 -9,9 C7,7 6,-15 -9,-21 Z M12,-13 L2,9 H23 Z" fill="${color}"/>`,
-    station_exit: `<circle r="19" fill="white" stroke="${ink}" stroke-width="2"/><path d="M-4,-10 H-11 V10 H-4 M-4,0 H11 M6,-5 L11,0 L6,5" fill="none" stroke="${ink}" stroke-width="2.5"/>`,
+    building: `<ellipse cy="27" rx="32" ry="5" fill="${color}" opacity=".13"/>
+      <path d="M-29,25 V-5 H-16 V25 M15,25 V-7 H28 V25" fill="${color}"/>
+      <path d="M-15,25 V-21 L0,-31 L15,-21 V25 Z" fill="${color}"/>
+      <path d="M0,-31 L15,-21 V25 H0 Z" fill="${ink}" opacity=".13"/>
+      <path d="M-10,-16 L-4,-20 V-11 L-10,-8 Z M5,-20 L11,-16 V-8 L5,-11 Z M-10,-3 L-4,-6 V3 L-10,5 Z M5,-6 L11,-3 V5 L5,3 Z M-10,10 L-4,8 V18 L-10,19 Z M5,8 L11,10 V19 L5,18 Z" fill="white"/>
+      <path d="M-23,1 V7 M-23,13 V19 M21,0 V7 M21,13 V19" stroke="white" stroke-width="3"/>
+      <path d="M-32,26 H31" stroke="${color}" stroke-width="2.5"/>`,
+    hospital: `<circle r="20" fill="white" stroke="${ink}" stroke-width="1.5"/><path d="M-5,-13 H5 V-5 H13 V5 H5 V13 H-5 V5 H-13 V-5 H-5 Z" fill="${theme === 'mono' ? ink : '#d35c4d'}"/>`,
+    cinema: `<circle r="23" fill="${ink}"/><circle cy="-12" r="4.7" fill="white"/><circle cx="11.4" cy="-3.7" r="4.7" fill="white"/><circle cx="7" cy="9.7" r="4.7" fill="white"/><circle cx="-7" cy="9.7" r="4.7" fill="white"/><circle cx="-11.4" cy="-3.7" r="4.7" fill="white"/>`,
+    station: `<circle r="24" fill="${ink}" stroke="white" stroke-width="3"/><rect x="-11" y="-16" width="22" height="28" rx="5" fill="white"/><rect x="-8" y="-11" width="16" height="10" rx="2" fill="${ink}"/><circle cx="-6" cy="6" r="2" fill="${ink}"/><circle cx="6" cy="6" r="2" fill="${ink}"/><path d="M-6,12 L-10,18 M6,12 L10,18" stroke="white" stroke-width="2.5"/>`,
+    station_exit: exitRef && /^[\p{L}\p{N}-]{1,4}$/u.test(exitRef)
+      ? `<circle r="21" fill="${theme === 'mono' ? 'white' : '#f2cd61'}" stroke="${ink}" stroke-width="2"/><text y="1" dominant-baseline="middle" text-anchor="middle" font-size="${exitRef.length > 2 ? 16 : 25}" font-weight="700" fill="${ink}">${escapeXml(exitRef)}</text>`
+      : pictogram("station_exit", theme),
   };
-  return `<g data-pictogram="${kind}" stroke-linejoin="round">${shapes[kind] ?? `<g transform="scale(.8)">${pictogram(kind, "mono", false, ink)}</g>`}</g>`;
+  return `<g data-pictogram="${kind}" stroke-linejoin="round">${shapes[kind] ?? pictogram(kind, theme, false, ink)}</g>`;
 }

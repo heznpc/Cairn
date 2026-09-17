@@ -33,6 +33,7 @@ export const imageBriefOutputSchema = {
           description: "Measured approach geometry at shared source nodes; near-straight or bent. Distinct junction nodes are never merged." },
         roadRelations: { type: "array", items: { type: "object" } },
         requestedStart: { type: ["string", "null"] },
+        destinationBlock: { type: "object", description: "Source-node street face containing the destination, retained regardless of style budget. Not a building footprint or route." },
       } },
     checks: { type: "array", items: { type: "string" } },
     warnings: { type: "array", items: { type: "string" } },

@@ -1,25 +1,27 @@
 /** A versioned visual brief, not a claim of measured audience preference. */
 export const EDITORIAL_DESIGN = {
-  id: "editorial-pictogram-v1",
+  id: "block-context-pictogram-v2",
   status: "prototype-unvalidated",
   basis: [
-    { kind: "reference-observation", statement: "User-supplied Korean commercial yakdo examples: quiet block ground, clear street bands, one dominant destination label, restrained landmark symbols." },
+    { kind: "reference-observation", statement: "Earlier pictogram illustrations retain block-defining side streets, recognizable colored symbols and prominent literal labels. They are appearance references, not geographic evidence." },
     { kind: "user-preference", statement: "Pictogram-led output, editable vectors, actual street relationships and preservation of real bends." },
-    { kind: "design-hypothesis", statement: "A single accent, unified pictograms and destination-first type hierarchy should make this visitor insert easier to scan. Audience preference has not been measured." },
+    { kind: "user-feedback", statement: "The three-street editorial draft lost block identity. Its weak intermediate-code comparison was not a faithful baseline for the earlier illustrated output. Preserve context and pictogram quality in revisions." },
+    { kind: "design-hypothesis", statement: "Protect the source-node street enclosure, keep enough surrounding streets and restore colored pictograms. Compare with the actual prior artifact. Audience preference remains unmeasured." },
   ],
   criteria: [
     { id: "destination", check: "The destination is the first map label noticed at delivery size; its full name stays readable." },
     { id: "orientation", check: "The station, literal exit number and named main roads are easy to locate without inventing a walking route." },
-    { id: "coherence", check: "Secondary symbols use one visual family; the destination owns the strongest accent." },
+    { id: "block-context", check: "The reader can identify the destination's block. Preserve the whole source-backed enclosing street boundary and keep it visible; a road-count budget must not erase it." },
+    { id: "coherence", check: "Preserve the recognizable pictogram detail, color and readable labels of the appearance reference. Do not substitute tiny generic glyphs as an improvement." },
     { id: "geography", check: "Compare source and blueprint: preserve connectivity, actual bends and place-side relationships. Background fields are not building footprints." },
-    { id: "legibility", check: "Inspect the rendered map at its intended size beside the previous output. No broken words, collisions, clipped labels or unclear leaders." },
+    { id: "legibility", check: "Inspect the rendered map at delivery size beside the actual earlier image. Identify the baseline's provenance; do not regenerate a weaker stand-in and call it the original. No broken words, collisions or clipped labels." },
   ],
   tokens: {
-    roads: { primary: 38, secondary: 28, tertiary: 12, residential: 8, path: 3 },
-    radius: 19, text: 20, destinationText: 20,
-    focusPaddingMeters: 40,
-    paper: "#ffffff", ground: "#eeede9", road: "#ffffff", ink: "#343633", muted: "#797c76", accent: "#b85a38",
-    frame: { side: 36, top: 130, bottom: 54 },
+    roads: { primary: 30, secondary: 22, tertiary: 8, residential: 5, path: 2 },
+    radius: 20, text: 20, destinationText: 21,
+    focusPaddingMeters: 70,
+    paper: "#fffefa", ground: "#fffefa", road: "#b5bac0", ink: "#283845", muted: "#64717b", accent: "#df513a",
+    frame: { side: 20, top: 24, bottom: 40 },
   },
 } as const;
 

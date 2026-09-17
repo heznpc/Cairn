@@ -8,13 +8,18 @@ of available formats, not population preference. Record the intended delivery
 size and what information the reader must locate. Do not turn one user's choice
 into a universal aesthetic rule.
 
-`editorial` is the first contract-driven prototype: a quiet gray field, white
-streets, a single destination accent and a consistent pictogram family. It
-selects three street groups and four landmarks, then fits their geographic
-envelope uniformly inside a separate map panel. The field is negative space,
-not surveyed block/building geometry. It returns `designContract` with evidence
-classifications, versioned renderer tokens and review criteria; its status is
-`prototype-unvalidated`, never an automatic visual pass.
+`editorial` preserves the streets enclosing the destination before simplifying
+context. It starts with six street groups and four landmarks; a source-node
+street cycle around the destination is protected even if the road budget would
+omit an edge. The viewport includes that boundary. Missing or clipped enclosure
+is reported, never repaired with invented streets. Its colored pictograms and
+full-name destination label retain the earlier illustrated direction. Street
+faces are not building footprints or verified access.
+
+The `designContract` separates evidence, user feedback and design hypotheses.
+Version 1 was rejected for losing block identity and using a weak intermediate
+code image as its historical baseline. Version 2 carries that correction into
+selection, viewport and layout rules. Its prototype status is not a visual pass.
 
 This direction draws on the user-supplied Korean commercial-map examples and
 the user's request for pictograms and editable vectors. Commercial services
@@ -31,19 +36,23 @@ test counts as evidence of aesthetic success. In a repository checkout:
 
 ```bash
 npm run build
-node scripts/compare-map-design.mjs office.json tmp/comparison
+node scripts/compare-map-design.mjs office.json tmp/comparison prior-image.png
 ```
 
-This produces both editable SVGs, PNGs, briefs, a shared source document, a
+This produces the revised editable SVG, PNG, brief, source document, a
 600-pixel review image, a side-by-side comparison and a pending `review.json`.
 Inspect the artifacts and fill the observations; do not infer a pass from file
-creation. No image model is called.
+creation. The supplied prior PNG is preserved and its hash recorded. A previously
+liked generated image guides appearance only; road facts still come from the
+document. Without a prior PNG, the left panel is labeled as a current code sample,
+never the original. Preserve past outputs in separate revision directories.
+No image model is called.
 
 ## Style is information design, theme is appearance
 
 | Style | Use when | Keep / simplify |
 |---|---|---|
-| `editorial` | A destination-first visitor insert with restrained pictograms | Quiet ground/white streets, destination plaque, separate heading, focused crop; inspect against its recorded design contract |
+| `editorial` | A pictogram guide where readers must recognize the destination’s block | Protect the enclosing streets and useful local context, keep recognizable colored symbols, and compare with the actual earlier image |
 | `schematic` | Business cards, direction inserts, Korean 약도 | A few essential streets and landmarks; compact line icons; preserve display paths, road-side relationships and intersection order |
 | `neighborhood` | Visitors need surrounding streets and geographic context | More local streets and POIs; keep orientation, angles and relative distances |
 | `pictorial` | Venue or event visitors benefit from recognizable symbols | A readable street skeleton with a consistent family of larger landmark pictograms |

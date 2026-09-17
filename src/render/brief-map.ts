@@ -11,7 +11,7 @@ import { EDITORIAL_DESIGN, editorialFrame } from "../design-contract.js";
 interface Canvas { width: number; height: number }
 interface Place {
   key: string; sourceId?: string; label: string; category?: LandmarkCategory;
-  pictogram?: PictogramKind; anchor: NormalizedPosition;
+  pictogram?: PictogramKind; exitRef?: string; anchor: NormalizedPosition;
 }
 const visualStyles = {
   editorial: EDITORIAL_DESIGN.tokens,
@@ -34,7 +34,7 @@ export function displayRoadPaths(roads: DisplayRoad[], canvas: Canvas, color = "
 }
 
 /** Code-rendered map: image-model output cannot replace this road layer. */
-export function renderBriefMap(canvas: Canvas, roads: DisplayRoad[], places: Place[], theme: RenderTheme, style: ImageStyle): string {
+export function renderBriefMap(canvas: Canvas, roads: DisplayRoad[], places: Place[], theme: RenderTheme, style: ImageStyle, destinationBoundary?: NormalizedPosition[]): string {
   const editorial = style === "editorial";
   const design = EDITORIAL_DESIGN.tokens;
   const frame = editorial ? editorialFrame(canvas) : { x: 16, y: 16, width: canvas.width - 32, height: canvas.height - 56 };
@@ -43,9 +43,10 @@ export function renderBriefMap(canvas: Canvas, roads: DisplayRoad[], places: Pla
   const accent = theme === "mono" ? "#181818" : theme === "civic" ? "#1769a0" : editorial ? design.accent : "#de493b";
   const roadColor = editorial ? design.road : theme === "mono" ? "#aaaaaa" : "#adb3b8";
   const visual = visualStyles[style];
+  const block = destinationBoundary?.map((p) => pixels(p, canvas));
   const radius = visual.radius;
   const icons = places.map((place) => ({ ...place, ...pixels(place.anchor, canvas),
-    radius: style === "pictorial" ? place.key === "D" || place.category === "park" ? 28 : 23 : radius }));
+    radius: editorial ? place.key === "D" ? 32 : place.category === "hospital" ? 19 : 23 : style === "pictorial" ? place.key === "D" || place.category === "park" ? 28 : 23 : radius }));
   const iconBoxes = icons.map((p) => ({ x: p.x - p.radius - 4, y: p.y - p.radius - 4, width: 2 * p.radius + 8, height: 2 * p.radius + 8 }));
   const segments = roads.flatMap((road) => road.points.slice(1).map((p, i) => ({
     a: pixels(road.points[i], canvas), b: pixels(p, canvas), halfWidth: widthFor(road, style) / 2 + 5,
@@ -54,7 +55,7 @@ export function renderBriefMap(canvas: Canvas, roads: DisplayRoad[], places: Pla
   const labels = icons.map((place) => {
     const size = place.key === "D" ? visual.destinationText : visual.text;
     const maxChars = editorial ? place.key === "D" ? 18 : 7 : place.key === "D" ? 6 : 8;
-    const padding = editorial && place.key === "D" ? 8 : 0;
+    const padding = 0;
     const words = place.label.trim().split(/\s+/u);
     const lines: string[] = [];
     for (const word of words) {
@@ -74,7 +75,7 @@ export function renderBriefMap(canvas: Canvas, roads: DisplayRoad[], places: Pla
   for (const { place, width, height } of labels) {
     const radius = place.radius;
     const candidates = [radius + 8, radius + 24, radius + 48, radius + 80, radius + 112].flatMap((gap) => [
-      ...(editorial ? [0, -12, 12, -24, 24, -width / 4, width / 4, -width / 2, width / 2, -width, width] : [0, -width / 4, width / 4]).flatMap((offset) => [
+      ...(editorial ? [0, -6, 6, -12, 12, -18, 18, -24, 24, -30, 30, -36, 36, -48, 48, -width / 4, width / 4, -width / 2, width / 2, -width, width] : [0, -width / 4, width / 4]).flatMap((offset) => [
         { x: place.x - width / 2 + offset, y: place.y + gap, width, height },
         { x: place.x - width / 2 + offset, y: place.y - gap - height, width, height },
       ]),
@@ -83,10 +84,29 @@ export function renderBriefMap(canvas: Canvas, roads: DisplayRoad[], places: Pla
       { x: place.x - width - gap, y: place.y + gap / 2, width, height },
       { x: place.x + gap, y: place.y + gap / 2, width, height },
     ]);
+    if (editorial && place.key === "D" && block) {
+      // Place a full-width name in the actual free interval between streets.
+      // A fixed offset grid can miss a usable narrow block by a few pixels.
+      for (const gap of [radius + 8, radius + 24, radius + 48, radius + 80, radius + 112]) {
+        for (const y of [place.y + gap, place.y - gap - height]) {
+          for (const { a, b, halfWidth: h } of segments) {
+            const slice = clipSegment(a.x, a.y, b.x, b.y, frame.x, y - h, frame.x + frame.width, y + height + h);
+            if (!slice) continue;
+            for (const x of [Math.max(slice[0][0], slice[1][0]) + h + 1, Math.min(slice[0][0], slice[1][0]) - h - width - 1]) {
+              if (x >= frame.x && x + width <= frame.x + frame.width) candidates.push({ x, y, width, height });
+            }
+          }
+        }
+      }
+    }
     const scored = candidates.map((box, i) => {
       const center = { x: box.x + box.width / 2, y: box.y + box.height / 2 };
       const pin = nearestLabelEdge(place, box);
       let score = i * 0.02 + Math.hypot(center.x - place.x, center.y - place.y) * (editorial && place.key === "D" ? 8 : 1);
+      if (place.key === "D" && block && ![
+        { x: box.x, y: box.y }, { x: box.x + box.width, y: box.y },
+        { x: box.x, y: box.y + box.height }, { x: box.x + box.width, y: box.y + box.height },
+      ].every((corner) => insidePolygon(corner, block))) score += 1e9;
       if (box.x < frame.x + 8 || box.y < (editorial ? frame.y + 12 : 45) || box.x + box.width > frame.x + frame.width - 8 || box.y + box.height > (editorial ? frame.y + frame.height - 8 : canvas.height - 40)) score += 1e6;
       iconBoxes.forEach((icon, j) => {
         if (overlapArea(box, icon) > 0) score += 1e8;
@@ -138,7 +158,7 @@ export function renderBriefMap(canvas: Canvas, roads: DisplayRoad[], places: Pla
     if (!label) continue;
     named.add(road.label);
     const angle = label.angle > 90 ? label.angle - 180 : label.angle < -90 ? label.angle + 180 : label.angle;
-    roadLabels.push(`<text id="road-label-${escapeXml(road.key)}" transform="translate(${label.x.toFixed(2)} ${label.y.toFixed(2)}) rotate(${angle.toFixed(2)})" text-anchor="middle" dominant-baseline="middle" font-size="${editorial ? 16 : 13}" fill="${editorial ? design.muted : ink}">${escapeXml(road.label)}</text>`);
+    roadLabels.push(`<text id="road-label-${escapeXml(road.key)}" transform="translate(${label.x.toFixed(2)} ${label.y.toFixed(2)}) rotate(${angle.toFixed(2)})" text-anchor="middle" dominant-baseline="middle" font-size="${editorial ? 16 : 13}" font-weight="${editorial ? 600 : 400}" fill="${ink}">${escapeXml(road.label)}</text>`);
   }
   icons.forEach((place, i) => {
     const category = place.category ?? "building";
@@ -146,7 +166,7 @@ export function renderBriefMap(canvas: Canvas, roads: DisplayRoad[], places: Pla
     const scale = place.key === "D" ? style === "neighborhood" ? 1.3 : 1.8 : style === "neighborhood" ? 1 : 1.25;
     const circle = place.key === "D" ? "" : `<circle r="${radius}" fill="${background}" stroke="${color}" stroke-width="1.8"/>`;
     const id = place.key === "D" ? "destination" : `landmark-${escapeXml(encodeURIComponent(place.sourceId ?? place.key))}`;
-    const symbol = editorial ? editorialPictogram(place.pictogram ?? category, place.key === "D" ? accent : ink, ink)
+    const symbol = editorial ? editorialPictogram(place.pictogram ?? category, accent, ink, place.exitRef, theme)
       : style === "pictorial"
       ? `<g transform="scale(${place.key === "D" ? 1.1 : 0.9})">${pictogram(place.pictogram ?? category, theme, place.key === "D")}</g>`
       : `${circle}<g transform="scale(${scale})">${landmarkIcon(category, 0, 0, color)}</g>`;
@@ -156,17 +176,25 @@ export function renderBriefMap(canvas: Canvas, roads: DisplayRoad[], places: Pla
     const dx = pin.x - place.x, dy = pin.y - place.y, distance = Math.hypot(dx, dy);
     const leader = distance > place.radius + 24
       ? `<path id="leader-${id}" d="M${(place.x + dx * place.radius / distance).toFixed(2)},${(place.y + dy * place.radius / distance).toFixed(2)} L${pin.x.toFixed(2)},${pin.y.toFixed(2)}" fill="none" stroke="#7c858b" stroke-width="1"/>` : "";
-    const plaque = editorial && place.key === "D" ? `<rect id="destination-plaque" x="${box.x}" y="${box.y}" width="${box.width}" height="${box.height}" rx="3" fill="${accent}"/>` : "";
-    const text = `<text id="label-${id}" data-place-label="${escapeXml(place.key)}" data-label-box="${[box.x, box.y, box.width, box.height].map((v) => v.toFixed(2)).join(" ")}" x="${(box.x + box.width / 2).toFixed(2)}" y="${(box.y + size + padding - (editorial ? 2 : 0)).toFixed(2)}" text-anchor="middle" font-size="${size}" font-weight="${place.key === "D" || editorial ? 700 : 550}" fill="${plaque ? '#ffffff' : place.key === "D" ? accent : ink}">${lines.map((line, j) => `<tspan x="${(box.x + box.width / 2).toFixed(2)}" dy="${j ? size + 5 : 0}">${escapeXml(line)}</tspan>`).join("")}</text>`;
-    placeGroups.push(`<g id="place-${id}" data-place="${escapeXml(place.key)}"><title>${escapeXml(place.label)}</title>${leader}${icon}${plaque}${text}</g>`);
+    const text = `<text id="label-${id}" data-place-label="${escapeXml(place.key)}" data-label-box="${[box.x, box.y, box.width, box.height].map((v) => v.toFixed(2)).join(" ")}" x="${(box.x + box.width / 2).toFixed(2)}" y="${(box.y + size + padding - (editorial ? 2 : 0)).toFixed(2)}" text-anchor="middle" font-size="${size}" font-weight="${place.key === "D" || editorial ? 700 : 550}" fill="${editorial ? ink : place.key === "D" ? accent : ink}">${lines.map((line, j) => `<tspan x="${(box.x + box.width / 2).toFixed(2)}" dy="${j ? size + 5 : 0}">${escapeXml(line)}</tspan>`).join("")}</text>`;
+    placeGroups.push(`<g id="place-${id}" data-place="${escapeXml(place.key)}"><title>${escapeXml(place.label)}</title>${leader}${icon}${text}</g>`);
   });
-  const heading = editorial ? `<g id="heading" fill="${ink}"><path d="M36,34 H62" stroke="${accent}" stroke-width="4"/><text x="74" y="40" font-size="14" letter-spacing="2">LOCATION</text><text x="36" y="91" font-size="32" font-weight="700">${escapeXml(places.find((p) => p.key === 'D')?.label ?? '')}</text><g transform="translate(${canvas.width - 64} 72)"><text y="-24" text-anchor="middle" font-size="13">N</text><path d="M0,-14 L-6,9 L0,5 L6,9 Z" fill="${ink}"/></g></g><rect id="map-ground" x="${frame.x}" y="${frame.y}" width="${frame.width}" height="${frame.height}" fill="${theme === 'mono' ? '#eeeeee' : design.ground}"/>` : "";
+  const heading = editorial ? `<g id="orientation" transform="translate(50 65)" fill="${ink}"><text y="-20" text-anchor="middle" font-size="17" font-weight="700">N</text><path d="M0,-12 L-8,14 L0,8 L8,14 Z"/></g>` : "";
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${canvas.width}" height="${canvas.height}" viewBox="0 0 ${canvas.width} ${canvas.height}" font-family="${editorial ? "'Apple SD Gothic Neo', 'Noto Sans CJK KR', Arial" : "Arial, 'Apple SD Gothic Neo', 'Noto Sans CJK KR'"}, sans-serif"><metadata>Map data © OpenStreetMap contributors, ODbL. Deterministic road geometry. Category pictograms are symbolic, not building likenesses.</metadata><rect id="background" width="100%" height="100%" fill="${background}"/>${heading}<defs><clipPath id="map"><rect x="${frame.x}" y="${frame.y}" width="${frame.width}" height="${frame.height}"/></clipPath></defs><g clip-path="url(#map)"><g id="roads">${displayRoadPaths(roads, canvas, roadColor, style)}</g><g id="road-labels">${roadLabels.join("")}</g><g id="places">${placeGroups.join("")}</g></g><text id="attribution" x="${editorial ? frame.x : 28}" y="${canvas.height - (editorial ? 20 : 16)}" font-size="12" fill="#737b81">© OpenStreetMap contributors</text></svg>`;
 }
 
 function nearestLabelEdge(point: Point, box: Box): Point {
   return { x: Math.max(box.x, Math.min(box.x + box.width, point.x)),
     y: Math.max(box.y, Math.min(box.y + box.height, point.y)) };
+}
+
+function insidePolygon(point: Point, polygon: Point[]): boolean {
+  let inside = false;
+  for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+    const a = polygon[i], b = polygon[j];
+    if ((a.y > point.y) !== (b.y > point.y) && point.x < a.x + (b.x - a.x) * (point.y - a.y) / (b.y - a.y)) inside = !inside;
+  }
+  return inside;
 }
 
 function crosses(a: Point, b: Point, c: Point, d: Point): boolean {
