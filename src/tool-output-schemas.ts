@@ -20,10 +20,12 @@ export const imageBriefOutputSchema = {
       properties: { width: { type: "integer" }, height: { type: "integer" } } },
     prompt: { type: "string", description: "Directions for the host's image tool. Pass with the reference image; not itself a generated map." },
     referenceSvg: { type: "string", description: "North-up geographic reference; the tool also returns this as an image/png content block." },
-    facts: { type: "object", required: ["destination", "landmarks", "roads", "sharedNodes", "roadRelations", "requestedStart"],
+    facts: { type: "object", required: ["destination", "landmarks", "roads", "sharedNodes", "roadContinuities", "roadRelations", "requestedStart"],
       additionalProperties: false, properties: {
         destination: { type: "object" }, landmarks: { type: "array", items: { type: "object" } },
         roads: { type: "array", items: { type: "object" } }, sharedNodes: { type: "array", items: { type: "object" } },
+        roadContinuities: { type: "array", items: { type: "object" },
+          description: "Measured approach geometry at shared source nodes; near-straight or bent. Distinct junction nodes are never merged." },
         roadRelations: { type: "array", items: { type: "object" } },
         requestedStart: { type: ["string", "null"] },
       } },

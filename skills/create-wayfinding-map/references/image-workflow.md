@@ -32,6 +32,9 @@ user asks to compare. Colors remain independent: use the document's existing
    Lane-level vehicle connectors whose endpoints share the same named street
    are omitted using OSM node identity. Links between different streets and
    links with unknown endpoint identities remain eligible for selection.
+   `roadContinuities` measures the approach directions at shared source nodes.
+   It distinguishes near-straight continuations from bends without moving or
+   merging nodes. A missing continuity record does not mean a straight road.
 
 ## Generate through the host
 
@@ -69,6 +72,13 @@ Check roads for diagonal cuts or extra branches caused by lane-level crossover
 details. Do not restore omitted intra-street connectors. In schematic and
 pictorial styles, paired carriageways of one street should form a single solid
 band, with no median slit or turning-lane shapes inside it.
+
+Compare the junction's actual approach axes with `roadContinuities` and the
+original reference. An aligned source street must not become independently
+offset or rotated arms in the image. Preserve source bends and distinct nodes
+in real staggered intersections; do not apply a universal straight-cross rule.
+Keep POI label backgrounds off the roads so a text backplate cannot erase a
+road section and make an otherwise continuous street appear disconnected.
 
 For a spelling-only defect, edit only that label while preserving geometry.
 For a structural/style defect, rebuild from the original geographic reference
