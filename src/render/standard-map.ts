@@ -1,3 +1,4 @@
+import { renderBuildingLayer } from "./footprints.js";
 import type { MapLayout } from "../types.js";
 import { markerStyle } from "./icons.js";
 import { pointsToPathData, roadStyle } from "./road-layout.js";
@@ -52,6 +53,8 @@ export function renderStandardMapSceneSVG(scene: StandardMapScene): string {
     );
   }
 
+  lines.push(renderBuildingLayer(scene.buildings, { width, height }, theme.destination, themeName === "mono"));
+
   for (const [index, landmark] of landmarks.entries()) {
     if (!landmark.leader) continue;
     const marker = markerStyle(landmark.lm.category, theme);
@@ -72,9 +75,14 @@ export function renderStandardMapSceneSVG(scene: StandardMapScene): string {
 
   if (approach?.points) {
     const path = pointsToPathData(approach.points);
+    const end = approach.points[approach.points.length - 1];
+    const networkEnd = approach.networkPoints?.[approach.networkPoints.length - 1];
+    const endsOnNetwork = networkEnd && Math.hypot(end.x - networkEnd.x, end.y - networkEnd.y) < 0.01;
     lines.push(...renderApproachPath(path, theme, {
       casingWidth: template.approachCasingWidth,
       coreWidth: template.approachWidth,
+      directional: !endsOnNetwork,
+      networkPath: approach.networkPoints ? pointsToPathData(approach.networkPoints) : undefined,
       data: { "route-mode": approach.mode },
     }));
   }

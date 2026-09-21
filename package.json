@@ -9,6 +9,10 @@
   },
   "main": "./dist/server.js",
   "exports": {
+    "./image-brief": {
+      "types": "./dist/image-brief.d.ts",
+      "import": "./dist/image-brief.js"
+    },
     ".": {
       "types": "./dist/server.d.ts",
       "import": "./dist/server.js"
