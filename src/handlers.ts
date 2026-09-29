@@ -1,19 +1,24 @@
 import { z } from "zod";
 import { generateMap } from "./pipeline.js";
-import { geocode } from "./geocode.js";
+import { searchGeocode } from "./geocode.js";
 import { findLandmarks } from "./landmarks.js";
+import { findBuildings } from "./buildings.js";
 import { findRoads } from "./roads.js";
 import {
+  FindBuildingsArgs,
   FindLandmarksArgs,
   FindRoadsArgs,
   GenerateMapArgs,
   GeocodeArgs,
   RenderDocumentArgs,
+  PrepareImageBriefArgs,
 } from "./tool-input-schemas.js";
 import {
   applyDiagramDocumentPatch,
   renderDiagramDocument,
 } from "./diagram-document.js";
+import { prepareImageBrief } from "./image-brief.js";
+import { encodeMapArtifact } from "./export.js";
 
 export { tools } from "./tool-registry.js";
 
@@ -23,7 +28,7 @@ export { tools } from "./tool-registry.js";
 // not a primitive or array. Reflect that at the type level so a future
 // `jsonResult(42)` or `jsonResult(landmarksArray)` won't compile.
 export interface DispatchResult {
-  content: Array<{ type: "text"; text: string }>;
+  content: Array<{ type: "text"; text: string } | { type: "image"; data: string; mimeType: "image/png" }>;
   structuredContent?: Record<string, unknown>;
   isError?: boolean;
 }
@@ -69,6 +74,21 @@ export async function dispatchTool(
   args: unknown,
 ): Promise<DispatchResult> {
   try {
+    if (name === "prepare_image_brief") {
+      const input = PrepareImageBriefArgs.parse(args);
+      const brief = prepareImageBrief(input.document, input.style);
+      const png = encodeMapArtifact(brief.referenceSvg, brief.canvas, "png") as Buffer;
+      const mapPng = encodeMapArtifact(brief.mapSvg, brief.canvas, "png") as Buffer;
+      return {
+        content: [
+          { type: "text", text: brief.prompt },
+          { type: "image", mimeType: "image/png", data: png.toString("base64") },
+          { type: "text", text: `Code-rendered draft; ${brief.designReview?.status ?? "needs-visual-review"}. This uses the blueprint road paths without image-model redrawing. Inspect the delivered image before claiming design quality.` },
+          { type: "image", mimeType: "image/png", data: mapPng.toString("base64") },
+        ],
+        structuredContent: brief,
+      };
+    }
     if (name === "generate_map") {
       const input = GenerateMapArgs.parse(args);
       const { svg, layout, document } = await generateMap(input.address, input);
@@ -96,19 +116,20 @@ export async function dispatchTool(
 
     if (name === "geocode") {
       const input = GeocodeArgs.parse(args);
-      const { lat, lon, displayName, raw } = await geocode(input.address);
-      // `raw` is the Nominatim payload (addressdetails=1) — host LLMs use it
-      // for follow-up reasoning (city, country_code, road, suburb). Only
-      // included when it's a record-shaped object so the schema check passes.
-      const body: Record<string, unknown> = { lat, lon, displayName };
-      if (raw && typeof raw === "object") body.raw = raw;
-      return jsonResult(body);
+      const result = await searchGeocode(input.address);
+      // Keep top-level coordinates for existing granular consumers.
+      return jsonResult({ ...result.candidates[0], ...result });
     }
 
     if (name === "find_landmarks") {
       const input = FindLandmarksArgs.parse(args);
       const landmarks = await findLandmarks(input.lat, input.lon, input.radiusMeters);
       return jsonResult({ landmarks });
+    }
+
+    if (name === "find_buildings") {
+      const input = FindBuildingsArgs.parse(args);
+      return jsonResult({ buildings: await findBuildings(input.lat, input.lon, input.radiusMeters) });
     }
 
     if (name === "find_roads") {

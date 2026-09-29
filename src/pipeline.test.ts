@@ -6,6 +6,7 @@ vi.mock("./geocode.js", () => ({
 vi.mock("./landmarks.js", () => ({
   findLandmarks: vi.fn(),
 }));
+vi.mock("./buildings.js", () => ({ findBuildings: vi.fn() }));
 vi.mock("./roads.js", () => ({
   findRoads: vi.fn(),
 }));
@@ -18,6 +19,7 @@ vi.mock("./render.js", () => ({
 
 import { geocode } from "./geocode.js";
 import { findLandmarks } from "./landmarks.js";
+import { findBuildings } from "./buildings.js";
 import { findRoads } from "./roads.js";
 import { curate } from "./curate.js";
 import { renderSVG } from "./render.js";
@@ -33,6 +35,7 @@ const mockedRenderSVG = vi.mocked(renderSVG);
 // countryCode is what Nominatim returns for a real Seoul address; it drives
 // the generated-label language, so keep it on the shared fixture.
 const geo = {
+  candidateId: "relation:1",
   lat: 37.5,
   lon: 127.0,
   displayName: "Test Address",
@@ -54,10 +57,23 @@ beforeEach(() => {
   mockedFindLandmarks.mockResolvedValue([landmark]);
   mockedCurate.mockReturnValue([landmark]);
   mockedFindRoads.mockResolvedValue([]);
+  vi.mocked(findBuildings).mockResolvedValue([]);
   mockedRenderSVG.mockReturnValue("<svg></svg>");
 });
 
 describe("generateMap", () => {
+  it("stops before fetching local data when the address needs selection", async () => {
+    mockedGeocode.mockRejectedValue(new Error("Multiple locations match"));
+    await expect(generateMap("Springfield")).rejects.toThrow(/Multiple locations/);
+    expect(mockedFindLandmarks).not.toHaveBeenCalled();
+    expect(mockedFindRoads).not.toHaveBeenCalled();
+  });
+
+  it("passes the explicit candidate identity to geocoding", async () => {
+    await generateMap("Springfield", { candidateId: "relation:2" });
+    expect(mockedGeocode).toHaveBeenCalledWith("Springfield", expect.objectContaining({ candidateId: "relation:2" }));
+  });
+
   it("expands the road search radius by the named multiplier", async () => {
     await generateMap("서울 강남구 테헤란로 152", { radiusMeters: 333 });
 
@@ -83,11 +99,26 @@ describe("generateMap", () => {
     expect(mockedFindRoads).toHaveBeenCalledWith(geo.lat, geo.lon, 5000, undefined);
   });
 
+  it("retains footprint fetch failure as explicit unknown context without failing the map", async () => {
+    vi.mocked(findBuildings).mockRejectedValue(new Error("upstream down"));
+    const result = await generateMap("Seoul");
+    expect(result.document.map.buildingContext?.status).toBe("unavailable");
+    expect(result.document.map.buildings).toEqual([]);
+  });
+
+  it("can explicitly skip footprints while retaining roads", async () => {
+    const result = await generateMap("Seoul", { buildings: false });
+    expect(findBuildings).not.toHaveBeenCalled();
+    expect(mockedFindRoads).toHaveBeenCalled();
+    expect(result.document.map.buildingContext?.status).toBe("not-requested");
+  });
+
   it("does not query roads when roads are disabled", async () => {
     const result = await generateMap("서울 강남구 테헤란로 152", { roads: false });
 
     expect(mockedFindRoads).not.toHaveBeenCalled();
     expect(result.layout.roads).toEqual([]);
+    expect(findBuildings).not.toHaveBeenCalled();
   });
 
   it("passes the render layout option through to renderSVG", async () => {
@@ -123,6 +154,7 @@ describe("generateMap", () => {
 
   it("derives the generated-label language from the geocoded country", async () => {
     mockedGeocode.mockResolvedValue({
+      candidateId: "relation:2",
       lat: 51.5,
       lon: -0.12,
       displayName: "London, United Kingdom",
@@ -146,6 +178,7 @@ describe("generateMap", () => {
     expect(result.layout.center.label).toBe("ここ");
     expect(mockedGeocode).toHaveBeenCalledWith("서울 강남구 테헤란로 152", {
       language: "ja",
+      candidateId: undefined, upstream: undefined,
     });
   });
 
