@@ -15,6 +15,18 @@ export interface GeocodingResult {
   raw?: unknown;
 }
 
+export interface GeocodingCandidate extends GeocodingResult {
+  /** Stable OSM identity (or coordinate identity for compatible mirrors). */
+  candidateId: string;
+  kind?: string;
+}
+
+export interface GeocodeSearchResult {
+  candidates: GeocodingCandidate[];
+  /** Multiple distinct matches; ranking is not a confidence score. */
+  ambiguous: boolean;
+}
+
 export type LandmarkCategory = (typeof LANDMARK_CATEGORIES)[number];
 
 export interface Landmark {
@@ -37,12 +49,36 @@ export interface Road {
   class: RoadClass;
   // Simplified polyline in geographic coordinates (Douglas-Peucker applied).
   points: Array<{ lat: number; lon: number }>;
+  /** Original OSM nodes, in way order, before display simplification. */
+  nodes?: Array<{
+    id: string;
+    lat: number;
+    lon: number;
+    /** Undefined means node metadata was not fetched; {} means no tags in OSM. */
+    tags?: Record<string, string>;
+    /** Barrier ways sharing this node; a mapped opening may override their tags. */
+    barriers?: Array<{ id: string; tags: Record<string, string> }>;
+  }>;
+  /** Original way tags, including highway, foot/access, layer, bridge and tunnel. */
+  tags?: Record<string, string>;
+}
+
+export interface GeoPoint { lat: number; lon: number }
+
+/** Ground-level source footprint, not a parcel, address match or entrance. */
+export interface BuildingFootprint {
+  id: string;
+  name?: string;
+  tags: Record<string, string>;
+  polygons: Array<{ outer: GeoPoint[]; holes: GeoPoint[][] }>;
 }
 
 export interface MapLayout {
   center: { lat: number; lon: number; label: string };
   landmarks: Landmark[];
   roads: Road[];
+  buildings?: BuildingFootprint[];
+  buildingContext?: { source: "OpenStreetMap"; status: "fetched" | "unavailable" | "not-requested"; radiusMeters: number };
   bbox: { north: number; south: number; east: number; west: number };
 }
 
