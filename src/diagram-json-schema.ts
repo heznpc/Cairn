@@ -41,6 +41,32 @@ export const roadItemJsonSchema = {
     id: { type: "string", minLength: IDENTIFIER_MIN_LENGTH },
     name: { type: "string" },
     class: { type: "string", enum: ROAD_CLASSES },
+    nodes: {
+      type: "array",
+      minItems: 2,
+      items: {
+        type: "object",
+        required: ["id", "lat", "lon"],
+        additionalProperties: false,
+        properties: {
+          id: { type: "string", minLength: IDENTIFIER_MIN_LENGTH },
+          lat: { type: "number", ...LATITUDE_RANGE },
+          lon: { type: "number", ...LONGITUDE_RANGE },
+          tags: { type: "object", additionalProperties: { type: "string" } },
+          barriers: {
+            type: "array",
+            items: {
+              type: "object", required: ["id", "tags"], additionalProperties: false,
+              properties: {
+                id: { type: "string", minLength: IDENTIFIER_MIN_LENGTH },
+                tags: { type: "object", additionalProperties: { type: "string" } },
+              },
+            },
+          },
+        },
+      },
+    },
+    tags: { type: "object", additionalProperties: { type: "string" } },
     points: {
       type: "array",
       items: {
@@ -53,6 +79,20 @@ export const roadItemJsonSchema = {
         },
       },
     },
+  },
+} as const;
+
+const buildingRingJsonSchema = { type: "array", minItems: 4, items: {
+  type: "object", required: ["lat", "lon"], additionalProperties: false,
+  properties: { lat: { type: "number", ...LATITUDE_RANGE }, lon: { type: "number", ...LONGITUDE_RANGE } },
+} } as const;
+export const buildingItemJsonSchema = {
+  type: "object", required: ["id", "tags", "polygons"], additionalProperties: false,
+  properties: {
+    id: { type: "string", minLength: 1 }, name: { type: "string" }, tags: { type: "object", additionalProperties: { type: "string" } },
+    polygons: { type: "array", minItems: 1, items: { type: "object", required: ["outer", "holes"], additionalProperties: false,
+      properties: { outer: buildingRingJsonSchema, holes: { type: "array", items: buildingRingJsonSchema } },
+    } },
   },
 } as const;
 
@@ -73,6 +113,10 @@ export const mapLayoutJsonSchema = {
     },
     landmarks: { type: "array", items: landmarkItemJsonSchema },
     roads: { type: "array", items: roadItemJsonSchema },
+    buildings: { type: "array", items: buildingItemJsonSchema },
+    buildingContext: { type: "object", required: ["source", "status", "radiusMeters"], additionalProperties: false,
+      properties: { source: { type: "string", const: "OpenStreetMap" }, status: { type: "string", enum: ["fetched", "unavailable", "not-requested"] }, radiusMeters: { type: "number", exclusiveMinimum: 0 } },
+    },
     bbox: {
       type: "object",
       required: ["north", "south", "east", "west"],

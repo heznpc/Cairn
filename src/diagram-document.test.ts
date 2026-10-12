@@ -10,8 +10,66 @@ import {
   parseDiagramDocumentPatch,
 } from "./diagram-schema.js";
 import { baseRenderLayout as layout } from "../test/fixtures/render.js";
+import type { MapLayout } from "./types.js";
 
 describe("DiagramDocument", () => {
+  it.each(["creation", "patch", "overrides"])("isolates nested node restrictions during %s", (operation) => {
+    const source: MapLayout = {
+      ...layout,
+      roads: [{
+        id: "path", class: "path", tags: { highway: "footway" },
+        points: [{ lat: 37.5, lon: 127 }, { lat: 37.501, lon: 127 }],
+        nodes: [
+          { id: "gate", lat: 37.5, lon: 127, tags: { barrier: "gate", locked: "yes" },
+            barriers: [{ id: "fence", tags: { barrier: "fence", access: "private" } }] },
+          { id: "end", lat: 37.501, lon: 127 },
+        ],
+      }],
+    };
+    const document = createDiagramDocument(source);
+    const sourceSnapshot = structuredClone(source);
+    const documentSnapshot = structuredClone(document);
+    const result = operation === "creation" ? createDiagramDocument(source).map
+      : operation === "patch" ? applyDiagramDocumentPatch(document, { render: { theme: "mono" } }).map
+      : applyDiagramOverrides(document.map, { roads: { path: { label: "Walkway" } } });
+    const gate = result.roads[0].nodes![0];
+    gate.tags!.locked = "no";
+    gate.barriers![0].tags.access = "yes";
+    gate.barriers![0].id = "edited-fence";
+    gate.barriers!.push({ id: "another-fence", tags: { barrier: "fence" } });
+    expect(source).toEqual(sourceSnapshot);
+    expect(document).toEqual(documentSnapshot);
+    // Unknown metadata must stay unknown, rather than becoming unrestricted {}.
+    expect(result.roads[0].nodes![1].tags).toBeUndefined();
+    expect(result.roads[0].nodes![1].barriers).toBeUndefined();
+  });
+
+  it("preserves independent topology copies across creation, patches and overrides", () => {
+    const source = {
+      ...layout,
+      roads: [{
+        id: "path", class: "path" as const,
+        points: [{ lat: 37.5, lon: 127 }, { lat: 37.501, lon: 127 }],
+        nodes: [{ id: "1", lat: 37.5, lon: 127 }, { id: "2", lat: 37.501, lon: 127 }],
+        tags: { highway: "footway", layer: "0" },
+      }],
+    };
+    const document = createDiagramDocument(source);
+    const parsed = parseDiagramDocument(JSON.parse(JSON.stringify(document)));
+    expect(parsed.map.roads).toEqual(source.roads);
+    const patched = applyDiagramDocumentPatch(document, { roads: { path: { label: "Walkway" } } });
+    const overridden = applyDiagramOverrides(document.map, patched.overrides);
+    for (const map of [document.map, patched.map, overridden]) {
+      map.roads[0].nodes![0].lat = 0;
+      map.roads[0].tags!.layer = "1";
+    }
+    expect(source.roads[0].nodes[0].lat).toBe(37.5);
+    expect(source.roads[0].tags.layer).toBe("0");
+    expect(parsed.map.roads[0].nodes![0].lat).toBe(37.5);
+    expect(new Set([document, patched].map((doc) => doc.map.roads[0].nodes)).size).toBe(2);
+    expect(overridden.roads[0].nodes).not.toBe(document.map.roads[0].nodes);
+  });
+
   it("creates a versioned JSON-roundtrippable document with stable defaults", () => {
     const document = createDiagramDocument(layout);
     const roundTrip = JSON.parse(JSON.stringify(document));

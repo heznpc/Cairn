@@ -2,6 +2,17 @@ import { describe, expect, it } from "vitest";
 import { parseCliRequest } from "./cli-args.js";
 
 describe("parseCliRequest", () => {
+  it("parses a style brief and refuses silently ignored image options", () => {
+    expect(parseCliRequest(["brief", "map.json", "--style", "pictorial", "--reference", "ref.png", "-o", "brief.json"]))
+      .toEqual({ kind: "image-brief", input: "map.json", style: "pictorial", reference: "ref.png", output: "brief.json" });
+    expect(parseCliRequest(["brief"])).toEqual({ kind: "missing-document" });
+    expect(parseCliRequest(["brief", "map.json", "--map", "map.png"]))
+      .toMatchObject({ kind: "image-brief", map: "map.png" });
+    expect(() => parseCliRequest(["Seoul", "--map", "map.png"])).toThrow(/require the brief command/);
+    expect(() => parseCliRequest(["brief", "map.json", "--style", "unknown"])).toThrow(/--style/);
+    expect(() => parseCliRequest(["brief", "map.json", "--theme", "mono"])).toThrow(/Unsupported brief options/);
+    expect(() => parseCliRequest(["Seoul", "--style", "schematic"])).toThrow(/require the brief command/);
+  });
   it("returns help with exit 1 when no args are provided", () => {
     expect(parseCliRequest([])).toEqual({ kind: "help", exitCode: 1 });
   });
@@ -57,6 +68,11 @@ describe("parseCliRequest", () => {
 
   it("reports missing address separately so cli.ts can print the help text", () => {
     expect(parseCliRequest(["generate"])).toEqual({ kind: "missing-address" });
+  });
+
+  it("can skip building lookup independently of roads", () => {
+    expect(parseCliRequest(["Seoul", "--no-buildings"]))
+      .toMatchObject({ kind: "generate", options: { buildings: false, roads: undefined } });
   });
 
   it("parses a document re-render request", () => {
@@ -120,5 +136,12 @@ describe("parseCliRequest", () => {
     expect(() => parseCliRequest(["Seoul", "--theme", "neon"])).toThrow(
       '--theme must be "paper", "mono", "civic", or "invitation" (got: "neon")',
     );
+  });
+
+  it("accepts a stable location candidate and rejects a missing candidate value", () => {
+    expect(parseCliRequest(["Springfield", "--candidate", "relation:2"])).toMatchObject({
+      kind: "generate", options: { candidateId: "relation:2" },
+    });
+    expect(() => parseCliRequest(["Springfield", "--candidate"])).toThrow(/requires a value/);
   });
 });

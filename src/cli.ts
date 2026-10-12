@@ -13,6 +13,7 @@ import { HELP, parseCliRequest } from "./cli-args.js";
 import { parseDiagramDocument } from "./diagram-schema.js";
 import { renderDiagramDocument } from "./diagram-document.js";
 import { artifactFormatFromPath, encodeMapArtifact } from "./export.js";
+import { prepareImageBrief } from "./image-brief.js";
 
 async function main() {
   const argv = process.argv.slice(2);
@@ -55,6 +56,23 @@ async function main() {
     return;
   }
 
+  if (request.kind === "image-brief") {
+    const paths = [request.input, request.output, request.reference, request.map].filter((p): p is string => Boolean(p)).map((p) => resolve(p));
+    if (new Set(paths).size !== paths.length) throw new Error("Document, brief, reference and map must use different paths");
+    if (request.reference) artifactFormatFromPath(request.reference);
+    if (request.map) artifactFormatFromPath(request.map);
+    const document = parseDiagramDocument(JSON.parse(readFileSync(request.input, "utf8")));
+    const brief = prepareImageBrief(document, request.style);
+    if (request.reference) writeArtifact(request.reference, brief.referenceSvg, brief.canvas);
+    if (request.map) writeArtifact(request.map, brief.mapSvg, brief.canvas);
+    const json = `${JSON.stringify(brief, null, 2)}\n`;
+    if (request.output) writeFileSync(request.output, json, "utf8");
+    else process.stdout.write(json);
+    console.error(`${brief.style} draft prepared: ${brief.designReview?.status ?? "needs-visual-review"}`);
+    for (const issue of brief.designReview?.issues ?? []) console.error(`  ${issue.code}: ${issue.message}`);
+    return;
+  }
+
   if (request.kind === "render-document") {
     const document = parseDiagramDocument(
       JSON.parse(readFileSync(request.input, "utf8")),
@@ -73,6 +91,7 @@ async function main() {
 
   const { svg, layout, document } = await generateMap(request.address, request.options);
 
+  if (layout.buildingContext?.status === "unavailable") console.error("Building footprints unavailable; blank areas are unknown, not open ground.");
   if (request.documentOutput) {
     writeFileSync(
       request.documentOutput,

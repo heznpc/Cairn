@@ -23,7 +23,7 @@ if (!frontmatter[1].includes("name: create-wayfinding-map")) {
   throw new Error("SKILL.md name must match its directory");
 }
 if (/\bTODO\b/.test(skill)) throw new Error("SKILL.md still contains TODO text");
-for (const tool of ["generate_map", "render_document"]) {
+for (const tool of ["generate_map", "render_document", "prepare_image_brief"]) {
   if (!skill.includes(`\`${tool}\``)) throw new Error(`SKILL.md must teach the ${tool} workflow`);
 }
 
