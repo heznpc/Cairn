@@ -2,8 +2,11 @@
 
 Use this order of importance. Never trade a higher item for a lower one.
 
-1. **Route legibility**: Preserve a continuous road or approach cue from the
-   strongest start landmark toward the destination.
+1. **Geographic legibility**: Preserve the destination block and useful arrival
+   context. In dense urban areas, retain actual neighboring building outlines
+   and gaps so the visitor can identify the destination building within that
+   block. A large empty road-bounded polygon is insufficient. When a route is supplied, preserve its continuity; do not invent
+   a route to satisfy a visual checklist.
 2. **Destination hierarchy**: Make the destination the first visual focus;
    keep its callout readable and unambiguous.
 3. **Marker clearance**: Keep marker discs and opaque labels out of protected
@@ -38,14 +41,24 @@ Use this order of importance. Never trade a higher item for a lower one.
 
 - Hide low-importance shops before transit, gates, schools, hospitals, or
   distinctive civic landmarks.
-- Preserve a named primary road before unnamed tertiary or residential roads.
+- Preserve the streets enclosing the destination block before applying a road
+  count budget. Major-road priority must not erase an essential local boundary.
+- Keep supplied building outlines and courtyard holes in the same coordinate
+  transform as roads. Emphasize the destination only when exactly one source
+  footprint contains its selected geocode point; never choose a nearby shape
+  because it looks plausible. Keep labels off that highlighted boundary.
+- If building lookup fails or returns no usable local outlines, record the
+  missing context. Fetch source data or revise the brief; do not portray blanks
+  as open land, invent parcels, or claim an entrance from a footprint.
 - Change template when composition is wrong; change theme only when visual
   tone or reproduction requirements are wrong.
 - Move a marker manually only after automatic placement visibly fails. Keep
   normalized positions within `0..1` and reinspect the road corridor.
 - Use `mono` when color contrast or print conditions are uncertain.
-- Treat `data-route-mode="inferred-road"` as a diagram heuristic, not certified
-  pedestrian routing. Verify crossings, entrances, restricted roads, and
-  grade-separated segments before publishing directions.
+- Treat `data-route-mode="osm-network"` as OSM node connectivity, not certified
+  pedestrian routing. Only the solid portion follows the node graph; dashed
+  endpoint connectors are unverified. `direct` and the minimal/badge templates
+  show direction-only cues. Legacy documents without road nodes use `direct`.
+  Verify barriers, crossings, entrances and access before publishing directions.
 - Never infer a private entrance, indoor connection, or game-world route from
   geographic proximity alone.

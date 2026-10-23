@@ -1,15 +1,41 @@
 ---
 name: create-wayfinding-map
-description: Create, inspect, and iteratively refine printable wayfinding diagrams with cairn. Use when a user asks for a Korean-style yakdo, invitation map, campus or venue directions, a simplified route diagram, an address-to-SVG map, or revisions such as hiding landmarks, changing labels, moving markers, switching template/theme, or resizing an existing DiagramDocument.
+description: Create and refine wayfinding maps with cairn using editable SVG diagrams, recorded visual design criteria and optional grounded host-generated images. Use for address-based yakdo, venue directions, style comparisons, or revisions to an existing map.
 ---
 
 # Create Wayfinding Map
 
-Use cairn as the deterministic renderer and use the host model for intent,
-curation, and visual critique. Treat the returned `DiagramDocument` as the
-source of truth across edit turns.
+Use cairn for geographic evidence, reproducible image briefs and SVG rendering;
+use the host model for intent, curation, image generation and visual critique.
+Treat the `DiagramDocument` as the geographic source across edit turns. Generated
+pixels never become new evidence for street connectivity or place positions.
 
-## Workflow
+## Choose the output path
+
+Before changing visual direction, record the intended output size, reference
+observations, explicit user preferences and untested design choices using the
+design-brief section of [references/image-workflow.md](references/image-workflow.md).
+Carry accepted choices across revisions. Render and compare against the previous
+artifact; successful generation and geometry checks do not establish visual quality.
+Read the visual rejection rubric in the image workflow before accepting a revised
+map. Critique it as a first-time visitor, without citing the implementation or
+tests as a defense. An automated pass only permits image review; it never ends it.
+
+- For image styling, pictogram illustration, or comparisons of visual styles,
+  use `prepare_image_brief` after resolving the document. Read
+  [references/image-workflow.md](references/image-workflow.md) for style choice,
+  deterministic map output, optional host image-tool handoff and correction.
+  `mapSvg` and the second PNG are code-rendered maps; they are not evidence of
+  a successful image-model run.
+- For editable vectors, deterministic output or a host without an image tool,
+  follow the SVG workflow below. Preserve an explicit format/style request;
+  do not silently substitute SVG for a requested generated image.
+- For a building destination in a dense city, use an image brief (usually
+  `editorial`) or the geographic SVG layout to retain building context. The
+  older diagram templates distort streets and do not overlay source footprints;
+  do not present them as a building-level urban locator.
+
+## SVG Workflow
 
 1. Resolve only information that changes the result.
    - Require a destination address or an existing `DiagramDocument`.
@@ -23,14 +49,24 @@ source of truth across edit turns.
 2. Generate the first document.
    - Call `generate_map` for an address. Retain `document` from
      `structuredContent`; do not reconstruct it from SVG.
+   - If several locations match, use the candidate addresses and the user's
+     stated location to choose a returned `candidateId`, then retry. Request a
+     location clarification when the supplied context cannot distinguish them.
+     Never substitute the first-ranked result or invent a candidate ID.
    - Start with `standard/paper` for general print use, then use the selection
      guidance in [references/quality.md](references/quality.md).
-   - Use `geocode`, `find_landmarks`, and `find_roads` only when host-side
+   - Keep the default building lookup on for urban destinations. Retain
+     `map.buildings` and `map.buildingContext` through edits: enclosing streets
+     alone do not identify a building among its neighbors.
+   - Use `geocode`, `find_landmarks`, `find_roads`, and `find_buildings` when host-side
      curation is materially better than the one-shot path.
 
 3. Inspect the rendered result.
    - Review the rendered image, not only the SVG source.
    - Apply every hard check in [references/quality.md](references/quality.md).
+   - Check that the destination sits among source-backed neighboring buildings,
+     with visible gaps and an unambiguous highlighted footprint. Missing OSM
+     coverage means unknown context, never vacant land; do not invent filler.
    - Treat a successful tool call as a draft, not proof of a usable map.
 
 4. Revise through the document.
@@ -48,8 +84,9 @@ source of truth across edit turns.
 5. Reinspect after every structural edit.
    - Recheck route continuity, marker-road clearance, label collisions,
      destination hierarchy, and attribution.
-   - Stop when the map is readable and purpose-fit. Do not churn styles after
-     the hard checks pass unless the user requested visual exploration.
+   - Stop when both technical checks and actual-size visual review pass. A
+     technical pass cannot override a visible composition failure. Fix the
+     relevant rule and render again; do not ask the user to perform routine QA.
 
 6. Deliver both surfaces when future edits are plausible.
    - Return or write SVG for future editing, PNG for bitmap use, or PDF for

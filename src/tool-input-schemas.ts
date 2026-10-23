@@ -15,6 +15,7 @@ import {
   DiagramDocumentSchema,
 } from "./diagram-schema.js";
 import { SUPPORTED_LABEL_LANGUAGES } from "./locale.js";
+import { IMAGE_STYLES } from "./image-styles.js";
 
 // `language` is a generate-time argument only: it selects the wording for
 // labels cairn generates. render_document takes no language because names are
@@ -36,6 +37,7 @@ const RenderThemeArg = z.enum(RENDER_THEMES);
 
 export const GenerateMapArgs = z.object({
   address: z.string().describe("Street address or place name"),
+  candidateId: z.string().min(1).optional().describe("Stable candidateId returned by geocode. Required when multiple locations match."),
   label: z.string().optional().describe('Label for the destination (default: localized "Here")'),
   language: LabelLanguageArg.optional().describe(
     'Language for generated labels such as unnamed transit exits ("Exit 3" vs "3번 출구"). Defaults to the destination country\'s language. POI names always stay as OpenStreetMap has them.',
@@ -53,6 +55,7 @@ export const GenerateMapArgs = z.object({
     .boolean()
     .optional()
     .describe("Draw the road skeleton (default true). Set false to skip the extra Overpass round-trip."),
+  buildings: z.boolean().optional().describe("Fetch source building footprints (default on with roads)."),
   focus: z
     .boolean()
     .optional()
@@ -62,6 +65,11 @@ export const GenerateMapArgs = z.object({
 export const RenderDocumentArgs = z.object({
   document: DiagramDocumentSchema.describe("DiagramDocument returned by generate_map or a previous render_document call"),
   patch: DiagramDocumentPatchSchema.optional().describe("Minimal changes to apply before rendering"),
+}).strict();
+
+export const PrepareImageBriefArgs = z.object({
+  document: DiagramDocumentSchema,
+  style: z.enum(IMAGE_STYLES).optional(),
 }).strict();
 
 export const GeocodeArgs = z.object({
@@ -79,3 +87,5 @@ export const FindRoadsArgs = z.object({
   lon: LongitudeArg,
   radiusMeters: RadiusArg.optional(),
 }).strict();
+
+export const FindBuildingsArgs = FindRoadsArgs;

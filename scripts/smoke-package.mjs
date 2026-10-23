@@ -84,7 +84,15 @@ writeFileSync(cliDocumentPath, JSON.stringify({
       importance: 1,
       tags: {},
     }],
-    roads: [],
+    roads: [{
+      id: "walkway", class: "path", tags: { highway: "footway", foot: "yes" },
+      points: [{ lat: 37.5005, lon: 127.0005 }, { lat: 37.5, lon: 127 }],
+      nodes: [
+        { id: "1", lat: 37.5005, lon: 127.0005, tags: {} },
+        { id: "2", lat: 37.5005, lon: 127, tags: {} },
+        { id: "3", lat: 37.5, lon: 127, tags: {} },
+      ],
+    }],
     bbox: { north: 37.501, south: 37.499, east: 127.001, west: 126.999 },
   },
   canvas: { width: 600, height: 400 },
@@ -113,6 +121,26 @@ if (readFileSync(cliPdfPath).subarray(0, 8).toString("ascii") !== "%PDF-1.4") {
   throw new Error("installed CLI did not export PDF");
 }
 
+const briefPath = join(installDir, "brief.json");
+const referencePath = join(installDir, "reference.png");
+const briefMapPath = join(installDir, "brief-map.png");
+run(process.execPath, [cliPath, "brief", cliDocumentPath, "--style", "pictorial", "-o", briefPath, "--reference", referencePath, "--map", briefMapPath], { cwd: installDir });
+if (JSON.parse(readFileSync(briefPath, "utf8")).style !== "pictorial" ||
+    !readFileSync(referencePath).subarray(1, 4).equals(Buffer.from("PNG")) ||
+    !readFileSync(briefMapPath).subarray(1, 4).equals(Buffer.from("PNG"))) {
+  throw new Error("installed CLI did not export an image brief/reference/map");
+}
+let sourceOverwriteRefused = false;
+try {
+  run(process.execPath, [cliPath, "brief", cliDocumentPath, "-o", cliDocumentPath], { cwd: installDir });
+} catch { sourceOverwriteRefused = true; }
+if (!sourceOverwriteRefused) throw new Error("brief overwrote its source document");
+
+const cliSvg = readFileSync(cliSvgPath, "utf8");
+if (!cliSvg.includes('data-route-mode="osm-network"') || !cliSvg.includes('data-approach-network="true"')) {
+  throw new Error("installed CLI lost the node-connected approach");
+}
+
 const smokePath = join(installDir, "mcp-smoke.mjs");
 writeFileSync(
   smokePath,
@@ -131,7 +159,7 @@ try {
   await client.connect(transport);
   const result = await client.listTools();
   const names = result.tools.map((tool) => tool.name).sort();
-  const expected = ["find_landmarks", "find_roads", "generate_map", "geocode", "render_document"];
+  const expected = ["find_buildings", "find_landmarks", "find_roads", "generate_map", "geocode", "prepare_image_brief", "render_document"];
   if (JSON.stringify(names) !== JSON.stringify(expected)) {
     throw new Error(\`unexpected tools: \${names.join(", ")}\`);
   }
@@ -153,7 +181,15 @@ try {
         importance: 1,
         tags: {},
       }],
-      roads: [],
+      roads: [{
+      id: "walkway", class: "path", tags: { highway: "footway", foot: "yes" },
+      points: [{ lat: 37.5005, lon: 127.0005 }, { lat: 37.5, lon: 127 }],
+      nodes: [
+        { id: "1", lat: 37.5005, lon: 127.0005, tags: {} },
+        { id: "2", lat: 37.5005, lon: 127, tags: {} },
+        { id: "3", lat: 37.5, lon: 127, tags: {} },
+      ],
+    }],
       bbox: { north: 37.501, south: 37.499, east: 127.001, west: 126.999 },
     },
     canvas: { width: 600, height: 400 },
@@ -170,12 +206,28 @@ try {
       },
     },
   });
+  for (const style of ["schematic", "neighborhood", "pictorial"]) {
+    const brief = await client.callTool({ name: "prepare_image_brief", arguments: { document, style } });
+    if (brief.isError || brief.structuredContent?.style !== style) throw new Error("installed image brief failed");
+    const images = brief.content.filter((item) => item.type === "image");
+    if (images.length !== 2 || images.some((image) => Buffer.from(image.data, "base64").subarray(1, 4).toString() !== "PNG") ||
+        !brief.structuredContent?.mapSvg?.includes("data-display-road")) {
+      throw new Error("installed image brief did not return a blueprint and code-rendered map");
+    }
+  }
   if (rendered.isError) throw new Error("installed render_document returned an error");
   if (rendered.structuredContent?.document?.render?.theme !== "mono") {
     throw new Error("installed render_document did not return the patched document");
   }
   if (rendered.structuredContent?.document?.render?.approachLandmarkId !== "gate") {
     throw new Error("installed render_document did not preserve the selected start landmark");
+  }
+  const returnedRoad = rendered.structuredContent?.document?.map?.roads?.[0];
+  if (returnedRoad?.nodes?.length !== 3 || returnedRoad?.tags?.foot !== "yes") {
+    throw new Error("installed render_document dropped road topology/access tags");
+  }
+  if (!rendered.structuredContent?.svg?.includes('data-approach-network="true"')) {
+    throw new Error("installed render_document lost the node-connected approach");
   }
   if (!rendered.structuredContent?.svg?.includes('data-theme="mono"')) {
     throw new Error("installed render_document did not return the patched SVG");
@@ -198,6 +250,7 @@ import { artifactFormatFromPath, encodeMapArtifact } from "${packageName}/export
 import { renderSVG } from "${packageName}/render";
 import { RENDER_TEMPLATES, RENDER_THEMES } from "${packageName}/options";
 import { generateMap } from "${packageName}/pipeline";
+import { prepareImageBrief } from "${packageName}/image-brief";
 import * as types from "${packageName}/types";
 
 const map = {
@@ -220,6 +273,9 @@ const document = createDiagramDocument(map, {
   overrides: { landmarks: { gate: { position: { x: 0.25, y: 0.25 } } } },
 });
 const svg = renderDiagramDocument(JSON.parse(JSON.stringify(document)));
+if (prepareImageBrief(document, "neighborhood").style !== "neighborhood") {
+  throw new Error("image-brief subpath did not prepare a neighborhood brief");
+}
 if (!svg.includes('data-template="standard"') || !svg.includes('data-theme="civic"')) {
   throw new Error("document subpath did not preserve template/theme");
 }
@@ -249,4 +305,7 @@ if (typeof types !== "object") {
 );
 
 run(process.execPath, [documentSmokePath], { cwd: installDir, stdio: "inherit" });
+const upstreamSmokePath = join(installDir, "upstream-smoke.mjs");
+writeFileSync(upstreamSmokePath, readFileSync(join(root, "scripts", "smoke-upstream.mjs")));
+run(process.execPath, [upstreamSmokePath, packageName], { cwd: installDir, stdio: "inherit" });
 console.log(`package smoke passed: ${tarball}`);
